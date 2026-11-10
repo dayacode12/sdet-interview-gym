@@ -1,0 +1,248 @@
+"""100 interview flashcards across 17 topics."""
+from __future__ import annotations
+
+# (front, back, topic)
+CARDS = [
+    # --- Java (12) ---
+    ("Why is String immutable in Java?",
+     "Security (safe as map keys, classloading), thread-safety, caching of hashCode, and string pool efficiency. Mutability would break hashing and allow tampering.", "Java"),
+    ("String vs StringBuilder vs StringBuffer?",
+     "String: immutable. StringBuilder: mutable, not thread-safe, fastest. StringBuffer: mutable, thread-safe (synchronized). Use StringBuilder for loops.", "Java"),
+    ("HashMap internals in one sentence?",
+     "Buckets indexed by hash(key); collisions form lists (or red-black trees after 8 elements since Java 8); load factor 0.75 triggers resize and rehash.", "Java"),
+    ("HashMap vs LinkedHashMap vs TreeMap?",
+     "HashMap: unordered, O(1). LinkedHashMap: insertion order (or access order), O(1). TreeMap: sorted by keys, O(log n).", "Java"),
+    ("== vs equals() for objects?",
+     "== compares references. equals() compares logical equality (override it with hashCode together — the contract).", "Java"),
+    ("Why override hashCode when overriding equals?",
+     "Equal objects must have equal hash codes; otherwise equal objects land in different hash buckets and HashMap/HashSet misbehave.", "Java"),
+    ("Checked vs unchecked exceptions?",
+     "Checked: verified at compile time (IOException, SQLException) — caller must handle. Unchecked: RuntimeException family (NPE, NumberFormatException) — programming errors.", "Java"),
+    ("ArrayList vs LinkedList?",
+     "ArrayList: contiguous array, O(1) get, amortised O(1) append, O(n) middle insert. LinkedList: O(1) insert given a node, O(n) access, more memory per element.", "Java"),
+    ("Comparable vs Comparator?",
+     "Comparable: natural order inside the class (compareTo). Comparator: external, composable ordering (comparing, thenComparing) — multiple orders per class.", "Java"),
+    ("fail-fast vs fail-safe iterators?",
+     "fail-fast throws ConcurrentModificationException on structural modification during iteration (ArrayList). fail-safe iterates a copy (ConcurrentHashMap iterators).", "Java"),
+    ("What does the Stream API pipeline consist of?",
+     "Source -> intermediate ops (filter, map, sorted — lazy) -> terminal op (collect, forEach, count) that triggers evaluation.", "Java"),
+    ("int overflow trap in Fibonacci-style problems?",
+     "int overflows at Fibonacci(47); use long, or BigInteger. In two-sum style problems, target - x can also underflow.", "Java"),
+
+    # --- Selenium (10) ---
+    ("Selenium implicit vs explicit vs fluent wait?",
+     "Implicit: global default poll for findElement. Explicit: WebDriverWait with a condition (elementToBeClickable). Fluent: explicit with custom poll interval and ignored exceptions.", "Selenium"),
+    ("Why is Thread.sleep() bad in tests?",
+     "Unconditional: wastes the full duration even when ready, and still fails if the app is slower. Waits should be condition-based.", "Selenium"),
+    ("findElement vs findElements?",
+     "findElement returns the first match or throws NoSuchElementException. findElements returns a (possibly empty) list — no exception when absent.", "Selenium"),
+    ("XPath vs CSS selectors — key difference?",
+     "XPath can traverse upward (parent::, ancestor::) and match text; CSS cannot go up and has no text matching. CSS is often faster and more readable.", "Selenium"),
+    ("How do you handle an authentication popup in Selenium?",
+     "Embedded credentials in the URL (https://user:pass@host) for basic auth, or a browser-specific proxy/extension approach for others.", "Selenium"),
+    ("How do you switch to an iframe?",
+     "driver.switchTo().frame(index|id|WebElement); do the work; switch back with switchTo().defaultContent() or parentFrame().", "Selenium"),
+    ("How do you handle file downloads in Selenium?",
+     "Configure a download directory via browser options, then poll the filesystem for the file to appear and stabilise (size stops changing).", "Selenium"),
+    ("What is the Page Object Model?",
+     "One class per page/component: locators and interactions inside, tests outside. UI changes are fixed in one place; no assertions in page methods.", "Selenium"),
+    ("How do you run Selenium tests in parallel?",
+     "TestNG parallel=methods/tests with a ThreadLocal WebDriver or a driver pool; tests must be independent with isolated data.", "Selenium"),
+    ("How do you capture evidence on failure?",
+     "TestNG Listener (ITestListener) or AspectJ hook: takes screenshot (TakesScreenshot), saves DOM snapshot, logs URL and time into the report.", "Selenium"),
+
+    # --- Playwright (8) ---
+    ("Selenium vs Playwright in one line each?",
+     "Selenium drives a browser via WebDriver protocol (per-language bindings). Playwright uses browser-native protocols (CDP), ships its own auto-waiting, network control and tracing.", "Playwright"),
+    ("What is Playwright auto-waiting?",
+     "Actions wait automatically for the element to be visible, enabled and stable before acting — removing most flaky-wait code you write in Selenium.", "Playwright"),
+    ("Playwright locator strategies?",
+     "page.getByRole, getByText, getByLabel, getByTestId, CSS/XPath — role/label based locators mirror how users and assistive tech see the page.", "Playwright"),
+    ("What are browser contexts used for?",
+     "Isolated sessions (cookies, storage) within one browser instance — parallel-independent tests and multi-user scenarios (admin + employee) without multiple browsers.", "Playwright"),
+    ("Playwright web-first assertions?",
+     "expect(locator).toHaveText(...) retries until the condition or timeout — assertions auto-wait like actions do.", "Playwright"),
+    ("How does Playwright intercept network?",
+     "page.route() intercepts requests: fulfil with mocks, abort, or continue; request/response events allow API-level assertions inside UI tests.", "Playwright"),
+    ("What is Playwright's trace viewer?",
+     "A trace artifact recording DOM snapshots, screenshots, network and logs per step — post-mortem debugging for CI failures.", "Playwright"),
+    ("How do you reuse authentication in Playwright?",
+     "storageState: log in once, save the authenticated state (cookies/localStorage), then create contexts preloaded with it — fast parallel suites.", "Playwright"),
+
+    # --- REST Assured / API testing (10) ---
+    ("REST Assured given-when-then?",
+     "given(): request spec (baseUri, headers, auth, body). when(): the verb+path. then(): assertions on status, headers, body, time.", "API testing"),
+    ("How do you pass a bearer token?",
+     ".auth().oauth2(token) or a header: given().header(\"Authorization\", \"Bearer \" + token).", "API testing"),
+    ("How do you validate a JSON array in REST Assured?",
+     "body(\"items.size()\", equalTo(3)) or body(\"items.role\", hasItems(\"EMPLOYEE\")) with Hamcrest matchers.", "API testing"),
+    ("How do you validate a JSON schema?",
+     ".then().body(matchesJsonSchemaInClasspath(\"schema.json\")) — the schema file declares required fields and types.", "API testing"),
+    ("How do you assert response time?",
+     ".then().time(lessThan(2000L, TimeUnit.MILLISECONDS)) — measure percentiles over multiple runs for SLA work, not one sample.", "API testing"),
+    ("What is API chaining?",
+     "Extract a value from one response (id, token) and use it in the next request — extract().path() or jsonPath().getString().", "API testing"),
+    ("Idempotency in REST?",
+     "Same request repeated yields the same final state: GET/PUT/DELETE are idempotent by design; POST needs an idempotency key.", "API testing"),
+    ("401 vs 403?",
+     "401 Unauthorized: missing/invalid credentials (not authenticated). 403 Forbidden: authenticated but lacking permission (not authorized).", "API testing"),
+    ("What is an IDOR vulnerability?",
+     "Insecure Direct Object Reference: user A accesses user B's resource by changing an ID. Test: call other IDs and expect 403/404, never 200 with data.", "API testing"),
+    ("How do you validate an API against the database?",
+     "Call the API, capture the response; query the DB via JDBC for the same records; compare field by field — the API is a view, the DB is the truth.", "API testing"),
+
+    # --- SQL (10) ---
+    ("INNER vs LEFT JOIN?",
+     "INNER: only matching rows from both sides. LEFT: all left rows + matching right rows, NULLs where no match — use with IS NULL for anti-joins.", "SQL"),
+    ("WHERE vs HAVING?",
+     "WHERE filters rows before grouping; HAVING filters groups after aggregation.", "SQL"),
+    ("Find duplicate values in SQL?",
+     "SELECT col, COUNT(*) FROM t GROUP BY col HAVING COUNT(*) > 1.", "SQL"),
+    ("Users with no orders (anti-join)?",
+     "LEFT JOIN orders o ON o.user_id = u.id WHERE o.user_id IS NULL — or NOT EXISTS, which is NULL-safe and often faster.", "SQL"),
+    ("What does GROUP BY do with NULLs?",
+     "All NULLs collapse into one group; NULL = NULL is not true in comparisons but GROUP BY groups them together.", "SQL"),
+    ("RANK vs DENSE_RANK vs ROW_NUMBER?",
+     "ROW_NUMBER: unique sequence. RANK: ties share rank, gaps after. DENSE_RANK: ties share rank, no gaps.", "SQL"),
+    ("Why is NOT IN dangerous with NULLs?",
+     "If the subquery returns any NULL, NOT IN returns no rows at all — NOT EXISTS is the safe alternative.", "SQL"),
+    ("Window function vs GROUP BY?",
+     "GROUP BY collapses rows to one per group; window functions keep every row and add aggregates OVER (PARTITION BY ...).", "SQL"),
+    ("COALESCE vs NULLIF?",
+     "COALESCE(a, b, c): first non-null value. NULLIF(a, b): NULL when a equals b — used to avoid divide-by-zero.", "SQL"),
+    ("How do you compare two tables for reconciliation?",
+     "Counts first (SELECT COUNT(*)), then FULL OUTER JOIN with NULL checks on both sides to list rows only present in one, plus checksums for value drift.", "SQL"),
+
+    # --- IAM (8) ---
+    ("IAM vs IGA vs PAM?",
+     "IAM: core identity + access (authN/authZ, SSO, MFA). IGA: governance — requests, certifications, JML compliance, audit. PAM: vaulting/rotation of privileged credentials.", "IAM"),
+    ("What is the JML lifecycle?",
+     "Joiner: create identity + birthright access. Mover: revoke old entitlements, grant new (the mover gap = keeping both). Leaver: revoke everything everywhere.", "IAM"),
+    ("What is reconciliation?",
+     "Comparing the IGA view with actual target-system state and correcting drift — catching accounts that exist but should not (or vice versa).", "IAM"),
+    ("What is user correlation?",
+     "Matching an incoming source record (HR feed) to an existing identity via rules (employee ID, email). Failures create duplicates; wrong matches merge different people.", "IAM"),
+    ("What is provisioning vs deprovisioning?",
+     "Provisioning: create/update accounts and entitlements on targets via connectors. Deprovisioning: remove them — and its failure is the security incident.", "IAM"),
+    ("What makes a strong correlation key?",
+     "A stable, unique, system-of-record identifier (employee ID). Name, DOB or email alone are weak — they collide or change.", "IAM"),
+    ("What is birthright access?",
+     "Entitlements granted automatically on join by rules (e.g., standard employee apps) — still needs governance review because rules drift.", "IAM"),
+    ("What is an access certification campaign?",
+     "Periodic review where managers/owners confirm or revoke each user's entitlements; decisions must be enforced downstream — the enforcement is what QA verifies.", "IAM"),
+
+    # --- Authentication / protocols (8) ---
+    ("OAuth 2.0 in one sentence?",
+     "A delegated authorization framework: a client obtains scoped access tokens to act on a user's behalf — it does not authenticate the user itself.", "OAuth"),
+    ("OIDC adds what to OAuth 2.0?",
+     "An identity layer: an ID token (JWT) asserting who authenticated, with claims sub, iss, aud, exp.", "OAuth"),
+    ("Authorization code + PKCE: why PKCE?",
+     "The code is intercepted easily on public clients (SPAs, mobile); PKCE binds the code exchange to a verifier the interceptor does not know.", "OAuth"),
+    ("Access token vs refresh token?",
+     "Access: short-lived, presented to APIs. Refresh: longer-lived, only for the token endpoint, rotated on use; revocation targets it.", "OAuth"),
+    ("SAML in one sentence?",
+     "XML-based enterprise SSO: the IdP issues a signed assertion; the SP validates signature, audience and time window, then creates a session.", "SAML"),
+    ("SAML assertion checks the SP must enforce?",
+     "Signature validity, audience (audienceRestriction), NotBefore/NotOnOrAfter window, replay detection, and the NameID mapping.", "SAML"),
+    ("What is inside a JWT?",
+     "header.payload.signature, base64url-encoded: header (alg), payload (claims: sub, iss, aud, exp, iat, scope), signature proving integrity.", "SAML"),
+    ("Why can a logged-out JWT still work?",
+     "JWTs are stateless: the resource server validates signature + claims without asking the issuer. Mitigations: short expiry, deny-list of jti, refresh revocation.", "SAML"),
+
+    # --- Authorization (4) ---
+    ("RBAC vs ABAC?",
+     "RBAC: permissions attached to assigned roles. ABAC: policy evaluated over attributes (department, time, location, data classification) at decision time.", "Authorization"),
+    ("What is least privilege and how do you verify it?",
+     "Minimum access needed for the job; verified by diffing assigned entitlements (API + DB) against approved requests.", "Authorization"),
+    ("What is SoD (separation of duties)?",
+     "Preventing role combinations that let one person both propose and approve critical actions (request and approve payments).", "Authorization"),
+    ("Privilege escalation types?",
+     "Vertical: user gains admin capabilities. Horizontal (IDOR): user accesses another user's peer-level resources.", "Authorization"),
+
+    # --- DLP (6) ---
+    ("What does DLP stand for and do?",
+     "Data Loss Prevention: detects and blocks sensitive data moving through channels it should not — email, uploads, USB, print.", "DLP"),
+    ("Content vs context inspection?",
+     "Content: the data itself (patterns, keywords, fingerprints). Context: metadata (recipient domain, file type, size, source). Strong DLP uses both.", "DLP"),
+    ("DLP false positive vs false negative?",
+     "FP: legitimate work blocked (visible, costly, erodes trust). FN: sensitive data leaks (silent, severe). Both measured as rates on a labelled corpus.", "DLP"),
+    ("What is PII?",
+     "Personally Identifiable Information: data that identifies a person (name, ID numbers, address, email, biometrics) — classified and protected per policy.", "DLP"),
+    ("DLP fail-open vs fail-closed?",
+     "Fail-open: traffic flows uninspected when the engine is down (availability). Fail-closed: traffic queues/rejected (security). Policy decides; QA verifies behaviour matches.", "DLP"),
+    ("How do you test DLP bypasses?",
+     "Renaming files, re-zipping, format conversion, spaced/masked digits, splitting data, images of text — detection must follow content, not metadata.", "DLP"),
+
+    # --- Performance testing (6) ---
+    ("Baseline vs load vs stress vs soak?",
+     "Baseline: single-user reference. Load: expected concurrency. Stress: beyond peak until degradation. Soak: extended duration for leaks and drift.", "Performance testing"),
+    ("Why percentiles over averages?",
+     "Averages hide the tail: 1s average + 30s spikes is a bad product with a good mean. P95/P99 describe what users actually experience.", "Performance testing"),
+    ("Throughput vs latency?",
+     "Latency: time per request. Throughput: requests per unit time. Both matter; they trade off under concurrency.", "Performance testing"),
+    ("What is a bottleneck isolation approach?",
+     "Correlate latency with tier metrics: app CPU, DB query time (slow query log), connection pools, external calls — find which tier grows with load.", "Performance testing"),
+    ("What do you assert in a performance test?",
+     "P95/P99 under SLA at target concurrency, error rate ~0, throughput expectation, and no degradation over soak duration.", "Performance testing"),
+    ("Common API performance bottlenecks?",
+     "Missing DB indexes, N+1 queries, exhausted connection pools, chatty external calls without timeouts, and oversized payloads.", "Performance testing"),
+
+    # --- CI/CD (5) ---
+    ("What does CI/CD mean for a test suite?",
+     "CI: every commit runs fast feedback suites. CD: promotion pipelines run full regressions with quality gates before release.", "CI/CD"),
+    ("Test pyramid target shape?",
+     "Many fast unit tests, fewer integration/API tests, few slow end-to-end UI tests — UI suites are expensive and flaky, so they cover critical paths.", "CI/CD"),
+    ("How do you handle flaky tests in CI?",
+     "Classify (product/environment/automation), quarantine with an owner and expiry date, fix the root cause, and report flake rates — never retry-and-forget.", "CI/CD"),
+    ("What belongs in a pipeline quality gate?",
+     "Unit + API suites green, new-feature coverage, critical-path UI regression, security/lint checks, and no open P1/P2 defects.", "CI/CD"),
+    ("How do you manage test secrets in CI?",
+     "Secret store (vault) injecting env vars at runtime; never in repo files; masked in logs; rotated independently of the pipeline definition.", "CI/CD"),
+
+    # --- QA leadership (5) ---
+    ("How do you decide what to automate?",
+     "High value x repeatability x stability: regression-critical flows, cross-layer validations, security assertions. Exploratory and one-off checks stay manual.", "QA leadership"),
+    ("How do you mentor a junior automation engineer?",
+     "Pair on real defects, review PRs with reasoning not just style, give escalating ownership (fix a test -> own a module -> own the suite), and teach debugging over copying.", "QA leadership"),
+    ("How do you report quality to non-technical stakeholders?",
+     "Risk framing: what is broken, user impact, scope numbers, what is blocked, what you recommend — defects translated into decisions.", "QA leadership"),
+    ("How do you handle release pressure with open defects?",
+     "Quantify risk, prioritise by user/security impact, propose scope reduction over shipping broken, and document accepted risks with owners.", "QA leadership"),
+    ("What makes a defect report actionable?",
+     "Steps, environment, expected vs actual, evidence (logs/screenshots/SQL), isolation notes, severity with justification, and a reproducibility statement.", "QA leadership"),
+
+    # --- Framework architecture (4) ---
+    ("Layers of a maintainable automation framework?",
+     "Test layer (TestNG/Cucumber) -> page/API layer (POM, service clients) -> utilities (waits, assertions, data) -> config -> execution (Maven, CI) -> reporting/evidence.", "Framework"),
+    ("How do you isolate tests from each other?",
+     "Independent data per test (create-your-own or seeding), no ordering dependencies, cleanup hooks, and parallel-safe shared state via ThreadLocal.", "Framework"),
+    ("How do you make failures diagnosable in CI?",
+     "Screenshots, DOM snapshots, request/response logs, correlation IDs, and clear failure categorisation — evidence attached to the report, not the console only.", "Framework"),
+    ("Application defect vs automation defect — how do you tell?",
+     "Reproduce manually/API-level, check logs and DB state, run on another environment, inspect the test's assumptions. If the product misbehaves outside the test, it is a product defect.", "Framework"),
+
+    # --- QA fundamentals (4) ---
+    ("Test case design techniques?",
+     "Equivalence partitioning, boundary value analysis, decision tables, state transition, pairwise, and risk-based selection.", "QA fundamentals"),
+    ("Verification vs validation?",
+     "Verification: does the system meet the spec (built right). Validation: does it meet the user need (right thing built).", "QA fundamentals"),
+    ("Severity vs priority?",
+     "Severity: technical impact. Priority: fix order. A typo on the homepage can be low severity, high priority.", "QA fundamentals"),
+    ("Defect lifecycle states?",
+     "New -> triaged/assigned -> fixed -> in verification -> closed (or reopened/rejected/deferred with reasons recorded).", "QA fundamentals"),
+]
+
+
+def all_cards() -> list[dict]:
+    return [
+        {"id": f"card-{i + 1}", "front": front, "back": back, "topic": topic}
+        for i, (front, back, topic) in enumerate(CARDS)
+    ]
+
+
+def topics() -> list[str]:
+    seen: list[str] = []
+    for _, _, topic in CARDS:
+        if topic not in seen:
+            seen.append(topic)
+    return seen

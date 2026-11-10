@@ -1,0 +1,38 @@
+# Render blueprint — deploys the SDET Interview Gym backend.
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repository.
+# Render will create the web service AND the PostgreSQL database, wiring
+# DATABASE_URL automatically. During the blueprint prompt, set CORS_ORIGINS
+# to your GitHub Pages URL (e.g. https://dayacode12.github.io) plus
+# http://localhost:3000 for local development.
+services:
+  - type: web
+    name: sdet-interview-gym-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true # redeploy on every push to main
+    envVars:
+      # Managed Postgres from the database below (progress persists).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sdet-interview-gym-db
+          property: connectionString
+      # JDK 17 is baked into the image, so candidate Java code really compiles
+      # and runs ("local" subprocess mode). Never faked.
+      - key: JAVA_EXECUTION_MODE
+        value: local
+      # Set during blueprint deploy: your GitHub Pages origin + localhost.
+      - key: CORS_ORIGINS
+        sync: false
+      # Optional LLM scoring; leave empty for the rule-based rubric.
+      - key: LLM_API_KEY
+        sync: false
+
+databases:
+  - name: sdet-interview-gym-db
+    databaseName: sdet_gym
+    user: gym
+    plan: free # note: free-tier Postgres on Render expires after 30 days

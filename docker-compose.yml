@@ -1,0 +1,68 @@
+services:
+  # ---------- Backend API ----------
+  backend:
+    build:
+      context: ./backend
+    container_name: sdet-gym-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # In-container default: SQLite in the mounted volume. For Postgres set
+      # DATABASE_URL=postgresql+psycopg2://gym:gym@postgres:5432/sdet_gym
+      DATABASE_URL: ${DATABASE_URL:-}
+      JAVA_EXECUTION_MODE: ${JAVA_EXECUTION_MODE:-docker}
+      JAVA_DOCKER_IMAGE: sdet-gym-java:latest
+      # Docker-in-Docker is not available; the backend reaches the host Docker
+      # socket, so we mount it read-only (Linux hosts only).
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      - backend-data:/srv/data
+      # Allows the backend to spawn candidate-code containers on Linux hosts.
+      # Windows/macOS Docker Desktop users should run with JAVA_EXECUTION_MODE=local
+      # or prebuild the executor image and run the backend natively.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  # ---------- Optional PostgreSQL ----------
+  # Only used when DATABASE_URL points at it; otherwise it stays idle.
+  postgres:
+    image: postgres:16-alpine
+    container_name: sdet-gym-postgres
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: gym
+      POSTGRES_PASSWORD: gym
+      POSTGRES_DB: sdet_gym
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gym -d sdet_gym"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- Frontend (Next.js) ----------
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sdet-gym-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+  postgres-data:

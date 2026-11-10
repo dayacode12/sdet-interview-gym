@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local data — your progress is yours
+backend/data/*.db
+
+# Environment
+.env
+backend/.env
+frontend/.env*
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+
+# Test artifacts
+backend/.pytest_cache/
+frontend/e2e/test-results/
+frontend/e2e/playwright-report/
+frontend/e2e/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
