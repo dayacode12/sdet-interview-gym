@@ -50,15 +50,15 @@ export default function ResumePage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Resume Deep Dive</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           {questions.length} questions drawn from your actual resume. Questions flagged
-          <span className="mx-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">needs your details</span>
+          <span className="mx-1 rounded bg-amber-100 dark:bg-amber-900 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-400">needs your details</span>
           contain gaps only you can fill — the platform will not invent numbers or events for you.
         </p>
       </header>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       ) : null}
@@ -67,7 +67,7 @@ export default function ResumePage() {
         <aside className="max-h-[80vh] space-y-3 overflow-y-auto pr-1">
           {categories.map((cat) => (
             <div key={cat}>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{cat}</p>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{cat}</p>
               <div className="space-y-1.5">
                 {questions.filter((q) => q.category === cat).map((q) => (
                   <button
@@ -75,12 +75,12 @@ export default function ResumePage() {
                     onClick={() => select(q)}
                     className={cn(
                       "w-full rounded-lg border p-2.5 text-left transition",
-                      selected?.id === q.id ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      selected?.id === q.id ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600"
                     )}
                   >
-                    <p className="text-[13px] font-medium leading-snug text-slate-800">{q.title}</p>
+                    <p className="text-[13px] font-medium leading-snug text-slate-800 dark:text-slate-100">{q.title}</p>
                     {q.needs_candidate_detail ? (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100 dark:bg-amber-900 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-400">
                         <UserCheck className="h-2.5 w-2.5" /> needs your details
                       </span>
                     ) : null}
@@ -93,18 +93,18 @@ export default function ResumePage() {
 
         <section className="space-y-4">
           {!selected || !detail ? (
-            <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500">
+            <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 dark:text-slate-400">
               Pick a resume question to rehearse.
             </div>
           ) : (
             <>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <h2 className="font-semibold text-slate-900">{detail.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{detail.guidance}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <h2 className="font-semibold text-slate-900 dark:text-slate-100">{detail.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{detail.guidance}</p>
               </div>
 
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-                <h3 className="mb-2 text-sm font-semibold text-indigo-900">STAR scaffold</h3>
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-indigo-900 dark:text-indigo-300">STAR scaffold</h3>
                 <dl className="space-y-2">
                   {(
                     [
@@ -115,30 +115,30 @@ export default function ResumePage() {
                     ] as const
                   ).map(([label, body]) => (
                     <div key={label} className="rounded-lg bg-white/70 p-2.5">
-                      <dt className="text-xs font-semibold text-indigo-700">{label}</dt>
-                      <dd className="mt-0.5 text-sm text-slate-700">{body}</dd>
+                      <dt className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">{label}</dt>
+                      <dd className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">{body}</dd>
                     </div>
                   ))}
                 </dl>
               </div>
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 p-4">
                 <button
                   onClick={() => setShowAnswer(!showAnswer)}
-                  className="flex w-full items-center justify-between font-semibold text-emerald-900"
+                  className="flex w-full items-center justify-between font-semibold text-emerald-900 dark:text-emerald-300"
                 >
                   Strong model answer
                   <ChevronDown className={cn("h-4 w-4 transition-transform", showAnswer && "rotate-180")} />
                 </button>
                 {showAnswer ? (
-                  <p className="mt-2 text-sm leading-relaxed text-emerald-950">{detail.strong_answer}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-emerald-950 dark:text-emerald-300">{detail.strong_answer}</p>
                 ) : null}
               </div>
 
               {detail.followups?.length ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Follow-up questions they may ask</h3>
-                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Follow-up questions they may ask</h3>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700 dark:text-slate-300">
                     {detail.followups.map((f, i) => (
                       <li key={i}>{f}</li>
                     ))}

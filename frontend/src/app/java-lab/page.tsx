@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, Lightbulb, Play, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { CodeEditor } from "@/components/code-editor";
+import { SaveProgress } from "@/components/save-progress";
 import { cn, difficultyBadge } from "@/lib/utils";
 
 interface QuestionMeta {
@@ -73,6 +74,12 @@ export default function JavaLabPage() {
     api.get<{ java_mode: string; mode_label: string }>("/api/java/meta").then(setMeta).catch(() => {});
   }, []);
 
+  // Deep link support: /java-lab?cat=<category> filters the list.
+  useEffect(() => {
+    const cat = new URLSearchParams(window.location.search).get("cat");
+    if (cat) setCategory(cat);
+  }, []);
+
   const categories = useMemo(() => {
     const cats = Array.from(new Set(questions.map((q) => q.category)));
     return ["all", ...cats];
@@ -128,24 +135,24 @@ export default function JavaLabPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Java Coding Lab</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           {questions.length || "…"} interview questions. Runnable problems follow a stdin/stdout
-          contract: define <code className="rounded bg-slate-100 px-1 text-xs">public class Main</code>,
+          contract: define <code className="rounded bg-slate-100 dark:bg-slate-800 px-1 text-xs">public class Main</code>,
           read input from stdin, print the exact expected output. Design questions are code-review
           exercises — there is nothing to execute.
         </p>
         {meta ? (
           <div className="mt-3 flex items-center gap-2">
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
               Execution: {meta.java_mode.toUpperCase()}
             </span>
-            <span className="text-xs text-slate-500">{meta.mode_label}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{meta.mode_label}</span>
           </div>
         ) : null}
       </header>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       ) : null}
@@ -159,12 +166,12 @@ export default function JavaLabPage() {
               "rounded-full px-3 py-1 text-xs font-medium transition",
               category === cat
                 ? "bg-indigo-600 text-white"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700"
             )}
           >
             {cat}
             {cat !== "all" ? (
-              <span className="ml-1 text-slate-400">
+              <span className="ml-1 text-slate-400 dark:text-slate-500">
                 {questions.filter((q) => q.category === cat).length}
               </span>
             ) : null}
@@ -181,22 +188,22 @@ export default function JavaLabPage() {
               className={cn(
                 "w-full rounded-lg border p-3 text-left transition",
                 selected?.id === q.id
-                  ? "border-indigo-400 bg-indigo-50"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+                  ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950"
+                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600"
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-slate-800">{q.title}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{q.title}</p>
                 <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", difficultyBadge(q.difficulty))}>
                   {q.difficulty}
                 </span>
               </div>
-              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span>{q.category}</span>
                 {q.type === "code" ? (
-                  <span className="text-emerald-600">● runnable ({q.test_count} tests)</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">● runnable ({q.test_count} tests)</span>
                 ) : (
-                  <span className="text-amber-600">● design</span>
+                  <span className="text-amber-600 dark:text-amber-400">● design</span>
                 )}
               </div>
             </button>
@@ -205,26 +212,26 @@ export default function JavaLabPage() {
 
         <section className="space-y-4">
           {!selected ? (
-            <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500">
+            <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 dark:text-slate-400">
               Pick a question from the list to start coding.
             </div>
           ) : (
             <>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-semibold text-slate-900">{selected.title}</h2>
+                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">{selected.title}</h2>
                   <span className={cn("shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold", difficultyBadge(selected.difficulty))}>
                     {selected.difficulty}
                   </span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                   {detail?.problem ?? selected.problem}
                 </p>
                 {detail?.hints?.length ? (
                   <div className="mt-3">
                     <button
                       onClick={() => setShowHints(!showHints)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800"
+                      className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-400"
                     >
                       <Lightbulb className="h-3.5 w-3.5" />
                       {showHints ? "Hide hints" : `Show hints (${detail.hints.length})`}
@@ -233,7 +240,7 @@ export default function JavaLabPage() {
                     {showHints ? (
                       <ul className="mt-2 space-y-1.5">
                         {detail.hints.map((hint, i) => (
-                          <li key={i} className="rounded bg-amber-50 p-2 text-xs text-amber-900">
+                          <li key={i} className="rounded bg-amber-50 dark:bg-amber-950 p-2 text-xs text-amber-900 dark:text-amber-300">
                             {hint}
                           </li>
                         ))}
@@ -246,6 +253,12 @@ export default function JavaLabPage() {
               {selected.type === "code" ? (
                 <>
                   <CodeEditor value={code} onChange={setCode} language="java" />
+                  <SaveProgress
+                    storageKey={`java:${selected.id}`}
+                    value={code}
+                    pristine={detail?.starter_code ?? ""}
+                    onRestore={setCode}
+                  />
                   <div className="flex items-center gap-3">
                     <button
                       onClick={runCode}
@@ -259,7 +272,7 @@ export default function JavaLabPage() {
                       <span
                         className={cn(
                           "flex items-center gap-1.5 text-sm font-medium",
-                          runResult.ok ? "text-emerald-600" : "text-rose-600"
+                          runResult.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                         )}
                       >
                         {runResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
@@ -269,13 +282,13 @@ export default function JavaLabPage() {
                   </div>
 
                   {runResult?.error ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 p-3 text-sm text-amber-800 dark:text-amber-400">
                       {runResult.error}
                     </div>
                   ) : null}
 
                   {runResult?.compile_error ? (
-                    <pre className="overflow-x-auto rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                    <pre className="overflow-x-auto rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-xs text-rose-800 dark:text-rose-400">
                       {runResult.compile_error}
                     </pre>
                   ) : null}
@@ -287,18 +300,18 @@ export default function JavaLabPage() {
                           key={t.name}
                           className={cn(
                             "rounded-lg border p-3",
-                            t.passed ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
+                            t.passed ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950" : "border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950"
                           )}
                         >
                           <div className="flex items-center gap-2 text-sm font-medium">
                             {t.passed ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-rose-600" />
+                              <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                             )}
                             {t.name}
                             {t.timed_out ? (
-                              <span className="rounded bg-rose-200 px-1.5 text-[10px] font-semibold text-rose-800">
+                              <span className="rounded bg-rose-200 px-1.5 text-[10px] font-semibold text-rose-800 dark:text-rose-400">
                                 TIMED OUT
                               </span>
                             ) : null}
@@ -306,17 +319,17 @@ export default function JavaLabPage() {
                           {!t.passed && t.expected !== undefined ? (
                             <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                               <div>
-                                <p className="font-semibold text-slate-600">Expected</p>
-                                <pre className="mt-0.5 whitespace-pre-wrap rounded bg-white p-2 text-slate-800">{t.expected}</pre>
+                                <p className="font-semibold text-slate-600 dark:text-slate-300">Expected</p>
+                                <pre className="mt-0.5 whitespace-pre-wrap rounded bg-white dark:bg-slate-900 p-2 text-slate-800 dark:text-slate-100">{t.expected}</pre>
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-600">Actual</p>
-                                <pre className="mt-0.5 whitespace-pre-wrap rounded bg-white p-2 text-slate-800">{t.actual || "(empty)"}</pre>
+                                <p className="font-semibold text-slate-600 dark:text-slate-300">Actual</p>
+                                <pre className="mt-0.5 whitespace-pre-wrap rounded bg-white dark:bg-slate-900 p-2 text-slate-800 dark:text-slate-100">{t.actual || "(empty)"}</pre>
                               </div>
                             </div>
                           ) : null}
                           {t.stderr ? (
-                            <pre className="mt-2 whitespace-pre-wrap rounded bg-white p-2 text-[11px] text-rose-700">{t.stderr}</pre>
+                            <pre className="mt-2 whitespace-pre-wrap rounded bg-white dark:bg-slate-900 p-2 text-[11px] text-rose-700 dark:text-rose-400">{t.stderr}</pre>
                           ) : null}
                         </div>
                       ))}
@@ -324,32 +337,32 @@ export default function JavaLabPage() {
                   ) : null}
                 </>
               ) : (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 p-3 text-sm text-amber-800 dark:text-amber-400">
                   This is a design/code-review question. Write your answer, then compare it with the
                   model solution below — nothing is executed.
                 </div>
               )}
 
-              <div className="border-t border-slate-200 pt-4">
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                 {!revealed ? (
                   <button
                     onClick={reveal}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   >
                     Reveal model solution
                   </button>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Model solution</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Model solution</p>
                     <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
                       {revealed.solution}
                     </pre>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Why it works</p>
-                    <p className="text-sm leading-relaxed text-slate-700">{revealed.explanation}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Why it works</p>
+                    <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{revealed.explanation}</p>
                     {revealed.followups?.length ? (
                       <>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Follow-up questions</p>
-                        <ul className="list-inside list-disc space-y-1 text-sm text-slate-700">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Follow-up questions</p>
+                        <ul className="list-inside list-disc space-y-1 text-sm text-slate-700 dark:text-slate-300">
                           {revealed.followups.map((f, i) => (
                             <li key={i}>{f}</li>
                           ))}

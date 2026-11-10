@@ -27,7 +27,7 @@ export function CodeEditor({
   template?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-900">
+    <div className="overflow-hidden rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-900">
       <Editor
         height={height}
         language={language}
@@ -44,7 +44,7 @@ export function CodeEditor({
           automaticLayout: true,
         }}
         loading={
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+          <div className="flex h-full items-center justify-center text-sm text-slate-400 dark:text-slate-500">
             Loading editor…
           </div>
         }

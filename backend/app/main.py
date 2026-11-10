@@ -8,18 +8,51 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import JAVA_MODE, settings
 from app.database import Base, engine
-from app.routers import analytics, automation, flashcards, iam, java, mock, resume, roadmap, scenarios, settings as settings_router, sql
+from app.routers import (
+    analytics,
+    automation,
+    company,
+    flashcards,
+    iam,
+    java,
+    mindmap,
+    mock,
+    resume,
+    roadmap,
+    scenarios,
+    settings as settings_router,
+    sql,
+)
 
-CONTENT_INVENTORY = {
-    "java_questions": 33,
-    "sql_challenges": 26,
-    "scenarios": 30,
-    "iam_modules": 5,
-    "flashcards": 100,
-    "resume_questions": 15,
-    "mock_sections": 6,
-    "automation_exercises": 12,
-}
+CONTENT_INVENTORY = None  # computed at import below, from the real banks
+
+
+def _compute_inventory() -> dict:
+    """Live counts from the content banks — never hardcoded, always truthful."""
+    from app.content import (
+        automation_lab,
+        flashcards,
+        iam_modules,
+        java_questions,
+        mock_interview,
+        resume_deep_dive,
+        scenarios,
+        sql_challenges,
+    )
+
+    return {
+        "java_questions": len(java_questions.JAVA_QUESTIONS),
+        "sql_challenges": len(sql_challenges.SQL_CHALLENGES),
+        "scenarios": len(scenarios.SCENARIOS),
+        "iam_modules": len(iam_modules.IAM_MODULES),
+        "flashcards": len(flashcards.all_cards()),
+        "resume_questions": len(resume_deep_dive.RESUME_QUESTIONS),
+        "mock_sections": len(mock_interview.MOCK_SECTIONS),
+        "automation_exercises": len(automation_lab.EXERCISES),
+    }
+
+
+CONTENT_INVENTORY = _compute_inventory()
 
 
 @asynccontextmanager
@@ -59,6 +92,8 @@ for router in (
     resume.router,
     roadmap.router,
     analytics.router,
+    company.router,
+    mindmap.router,
     settings_router.router,
 ):
     app.include_router(router)

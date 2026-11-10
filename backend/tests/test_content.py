@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from app.content import (
     automation_lab,
+    company_profile,
     flashcards,
     iam_modules,
     interview_research,
     java_questions,
+    mind_map,
     mock_interview,
     resume_deep_dive,
     roadmap,
@@ -128,3 +130,44 @@ def test_roadmap_content():
     assert len(roadmap.PRIORITY_QUESTIONS) == 10
     assert len(roadmap.CHEAT_SHEET_SECTIONS) >= 10
     assert len(roadmap.HTTP_STATUS_CODES) >= 10
+
+
+def test_company_profile_completeness():
+    p = company_profile.COMPANY_PROFILE
+    assert p["mission"], "mission must be present"
+    assert [v["name"] for v in p["values"]] == ["Trust", "Innovation", "Teamwork", "Stewardship"]
+    for v in p["values"]:
+        assert v["meaning"] and v["qa_link"], "every value needs meaning + QA angle"
+    assert len(p["numbers"]) >= 6
+    assert any("$10.10 trillion" == n["value"] for n in p["numbers"])
+    assert len(p["history"]) >= 6
+    assert len(p["interview_angles"]) >= 4
+    for a in p["interview_angles"]:
+        assert a["question"] and len(a["talking_points"]) >= 4 and len(a["model_answer"]) >= 200
+    assert len(p["hiring"]["steps"]) == 5
+    assert len(p["quick_facts_drill"]) >= 10
+    assert len(p["sources"]) >= 4
+    for s in p["sources"]:
+        assert s["name"] and s["url"].startswith("http") and s["what"]
+    assert p["disclaimer"]
+
+
+def test_mind_map_tree_structure():
+    tree = mind_map.build_tree()
+    assert tree["id"] == "root"
+    branch_ids = [b["id"] for b in tree["children"]]
+    assert branch_ids == ["java", "automation", "security", "sql", "interview", "revision"]
+    for node in mind_map.walk(tree):
+        assert node["id"] and node["label"]
+        # Every leaf must open a topic; counts must be positive ints when present.
+        if not node.get("children"):
+            assert node.get("href"), f"leaf {node['id']} must link to a topic page"
+        if node.get("count") is not None:
+            assert isinstance(node["count"], int) and node["count"] >= 0
+    # The six top branches all deep-link somewhere.
+    for b in tree["children"]:
+        assert b.get("href"), f"branch {b['id']} must have an href"
+    # Counts match the real banks (truthfulness contract).
+    nodes = {n["label"]: n for n in mind_map.walk(tree)}
+    assert nodes["Java Coding"]["count"] == len(java_questions.JAVA_QUESTIONS)
+    assert nodes["Backend Validation"]["count"] == len(sql_challenges.SQL_CHALLENGES)

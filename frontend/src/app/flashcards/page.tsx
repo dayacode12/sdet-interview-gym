@@ -43,6 +43,9 @@ export default function FlashcardsPage() {
     api.get<{ cards: Card[]; topics: string[] }>("/api/flashcards").then((r) => {
       setCards(r.cards);
       setTopics(r.topics);
+      // Deep link support: /flashcards?topic=<name> starts on that deck.
+      const wanted = new URLSearchParams(window.location.search).get("topic");
+      if (wanted && r.topics.includes(wanted)) setTopic(wanted);
     }).catch((e) => setError(e.message));
     loadStates();
   }, [loadStates]);
@@ -86,20 +89,20 @@ export default function FlashcardsPage() {
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Flashcards</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {cards.length} cards across {topics.length} topics. {reviewed} reviewed · {known} known.
           </p>
         </div>
         <button
           onClick={reset}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
         >
           <RotateCcw className="h-3.5 w-3.5" /> Reset progress
         </button>
       </header>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       ) : null}
@@ -109,7 +112,7 @@ export default function FlashcardsPage() {
           onClick={() => { setTopic("all"); setIndex(0); setFlipped(false); }}
           className={cn(
             "rounded-full px-3 py-1 text-xs font-medium",
-            topic === "all" ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+            topic === "all" ? "bg-indigo-600 text-white" : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
           )}
         >
           all ({cards.length})
@@ -123,14 +126,14 @@ export default function FlashcardsPage() {
               onClick={() => { setTopic(t); setIndex(0); setFlipped(false); }}
               className={cn(
                 "rounded-full px-3 py-1 text-xs font-medium",
-                topic === t ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                topic === t ? "bg-indigo-600 text-white" : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
               {t} {knownT}/{total}
             </button>
           );
         })}
-        <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600">
+        <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
           <input
             type="checkbox"
             checked={onlyUnknown}
@@ -143,7 +146,7 @@ export default function FlashcardsPage() {
 
       {card ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>
               Card {index + 1} of {deck.length} · {card.topic}
             </span>
@@ -158,16 +161,16 @@ export default function FlashcardsPage() {
 
           <button
             onClick={() => setFlipped(!flipped)}
-            className="flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border-2 border-indigo-200 bg-white p-8 text-center shadow-sm transition hover:border-indigo-300"
+            className="flex min-h-64 w-full flex-col items-center justify-center rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-8 text-center shadow-sm transition hover:border-indigo-300 dark:hover:border-indigo-800"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
               {flipped ? "Answer" : "Question"}
             </p>
-            <p className="mt-4 max-w-2xl text-lg font-medium leading-relaxed text-slate-900">
+            <p className="mt-4 max-w-2xl text-lg font-medium leading-relaxed text-slate-900 dark:text-slate-100">
               {flipped ? card.back : card.front}
             </p>
             {!flipped ? (
-              <p className="mt-6 text-xs text-slate-400">Click to flip</p>
+              <p className="mt-6 text-xs text-slate-400 dark:text-slate-500">Click to flip</p>
             ) : null}
           </button>
 
@@ -184,13 +187,13 @@ export default function FlashcardsPage() {
               ))}
             </div>
           ) : (
-            <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+            <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
               <Volume2 className="h-3 w-3" /> Say the answer out loud, then flip and grade yourself honestly.
             </p>
           )}
         </div>
       ) : (
-        <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500">
+        <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 dark:text-slate-400">
           No cards match this filter — everything here is marked known. Switch topics or uncheck the filter.
         </div>
       )}

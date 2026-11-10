@@ -32,9 +32,9 @@ interface Analytics {
 }
 
 const MODE_STYLES: Record<string, string> = {
-  docker: "bg-emerald-100 text-emerald-800",
-  local: "bg-amber-100 text-amber-800",
-  disabled: "bg-slate-200 text-slate-600",
+  docker: "bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400",
+  local: "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-400",
+  disabled: "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300",
 };
 
 const MODE_TEXT: Record<string, string> = {
@@ -77,21 +77,21 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-bold">Welcome back{dash ? `, ${dash.candidate_name}` : ""}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-600">{dash?.tagline ?? "Loading…"}</p>
+        <p className="mt-1 max-w-3xl text-sm text-slate-600 dark:text-slate-300">{dash?.tagline ?? "Loading…"}</p>
       </header>
 
       {error ? (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <div className="flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-4 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="w-full">
             <p className="font-medium">Backend not reachable</p>
             <p className="mt-0.5 text-xs">
               Running locally? Start it with{" "}
-              <code className="rounded bg-rose-100 px-1">python -m uvicorn app.main:app --port 8000</code>{" "}
+              <code className="rounded bg-rose-100 dark:bg-rose-900 px-1">python -m uvicorn app.main:app --port 8000</code>{" "}
               from the backend directory. ({error})
             </p>
-            <div className="mt-2.5 rounded-lg border border-rose-200 bg-white p-2.5">
-              <p className="text-[11px] font-medium text-slate-700">
+            <div className="mt-2.5 rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-900 p-2.5">
+              <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
                 Using the hosted UI (GitHub Pages)? Point it at your Render backend:
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
                   onChange={(e) => setApiUrl(e.target.value)}
                   onFocus={() => setApiUrl((v) => v || getApiBaseUrl())}
                   placeholder="https://your-render-service.onrender.com"
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
                 />
                 <button
                   onClick={saveApiUrl}
@@ -111,12 +111,12 @@ export default function DashboardPage() {
                 </button>
                 <button
                   onClick={resetApiUrl}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 >
                   Reset
                 </button>
               </div>
-              <p className="mt-1 text-[10px] text-slate-400">
+              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
                 Saved in this browser only. Current backend: {getApiBaseUrl()}
               </p>
             </div>
@@ -125,15 +125,15 @@ export default function DashboardPage() {
       ) : null}
 
       {dash ? (
-        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-4 text-xs text-slate-600">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-xs text-slate-600 dark:text-slate-300">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
           <p>{dash.honesty}</p>
         </div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <Clock className="h-3.5 w-3.5" /> Interview
           </div>
           {daysLeft !== null ? (
@@ -141,56 +141,56 @@ export default function DashboardPage() {
               <p className="mt-2 text-2xl font-bold">
                 {daysLeft >= 0 ? `${daysLeft}d` : "done"}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {new Date(settings!.interview_datetime).toLocaleString()}
               </p>
             </>
           ) : (
             <>
-              <p className="mt-2 text-sm font-medium text-slate-700">Not scheduled</p>
-              <Link href="/roadmap" className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+              <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">Not scheduled</p>
+              <Link href="/roadmap" className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
                 Set the date <ArrowRight className="h-3 w-3" />
               </Link>
             </>
           )}
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <FlaskConical className="h-3.5 w-3.5" /> Java Lab
           </div>
           <p className="mt-2 text-2xl font-bold">
-            {analytics?.java.passed ?? 0}<span className="text-sm font-normal text-slate-400">/{dash?.content.java_questions ?? 33}</span>
+            {analytics?.java.passed ?? 0}<span className="text-sm font-normal text-slate-400 dark:text-slate-500">/{dash?.content.java_questions ?? 33}</span>
           </p>
-          <p className="text-xs text-slate-500">questions passed</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">questions passed</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <Timer className="h-3.5 w-3.5" /> Mock Interview
           </div>
-          <p className="mt-2 text-sm font-medium text-slate-700">60 minutes, 6 sections</p>
-          <Link href="/mock-interview" className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">60 minutes, 6 sections</p>
+          <Link href="/mock-interview" className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
             Start a session <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <ShieldCheck className="h-3.5 w-3.5" /> Content
           </div>
           <p className="mt-2 text-lg font-bold">
             {(Object.values(dash?.content ?? {})).reduce((a, b) => a + b, 0)} items
           </p>
-          <p className="text-xs text-slate-500">across all labs</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">across all labs</p>
         </div>
       </section>
 
       {dash ? (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Java execution mode</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Java execution mode</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${MODE_STYLES[dash.java_mode] ?? "bg-slate-100"}`}>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${MODE_STYLES[dash.java_mode] ?? "bg-slate-100 dark:bg-slate-800"}`}>
               {dash.java_mode.toUpperCase()}
             </span>
-            <span className="text-xs text-slate-600">{MODE_TEXT[dash.java_mode]}</span>
+            <span className="text-xs text-slate-600 dark:text-slate-300">{MODE_TEXT[dash.java_mode]}</span>
           </div>
         </section>
       ) : null}
@@ -207,13 +207,13 @@ export default function DashboardPage() {
           <Link
             key={card.href}
             href={card.href}
-            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-sm"
+            className="group flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 transition hover:border-indigo-300 dark:hover:border-indigo-800 hover:shadow-sm"
           >
             <div>
-              <p className="font-semibold text-slate-800 group-hover:text-indigo-700">{card.title}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{card.desc}</p>
+              <p className="font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">{card.title}</p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{card.desc}</p>
             </div>
-            <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600" />
+            <ArrowRight className="h-4 w-4 text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
           </Link>
         ))}
       </section>

@@ -17,7 +17,10 @@ SQL really runs against a sandboxed database, and nothing is ever faked.**
 
 | Area | Content |
 |---|---|
-| **Java Lab** | 33 questions (core Java + automation-focused) with a real run-button, stdin/stdout test harness, hints and solutions |
+| **Mind Map** | One clickable tree of the whole gym — every node deep-links into that exact topic; counts computed live from the content banks |
+| **Company Brief** | Schwab researched from public sources: mission, values (with your QA angle), scale numbers, history, tech org, 5-step hiring process, model answers, quick-facts drill |
+| **Interview Plan** | The 2-day countdown to the interview: per-day checklists around a day job (saved locally), reverse questions, key Schwab numbers, compensation snapshot (Levels.fyi) |
+| **Java Lab** | 32 questions (core Java + automation-focused) with a real run-button, stdin/stdout test harness, hints and solutions |
 | **Automation Lab** | 12 Selenium / Playwright / REST Assured coding exercises + framework architecture Q&A |
 | **SQL Playground** | 26 challenges on a seeded IAM dataset (users, roles, access requests, certifications, provisioning logs) with realistic defects planted; free-query sandbox |
 | **IAM Lab** | 5 modules (IAM fundamentals, IGA/Saviynt, PAM/CyberArk, auth protocols, DLP) with concepts, architecture, interview Q&A, test cases and server-graded quizzes |
@@ -26,7 +29,15 @@ SQL really runs against a sandboxed database, and nothing is ever faked.**
 | **Resume Deep Dive** | 15 questions with STAR scaffolds; candidate-specific gaps are flagged, never invented |
 | **Flashcards** | 100 cards across 17 topics with confidence tracking |
 | **Analytics** | Progress, weak Java categories, mock history, time-on-topic |
-| **Cheat Sheet** | 12 sections + HTTP status reference |
+| **Cheat Sheet** | Tabbed last-mile revision: overview, cheat codes, comparisons, traps, drill, topics — plus HTTP status reference |
+
+16 pages total, with a **dark mode toggle** (bottom of the sidebar; follows your OS
+preference by default, and remembers an explicit choice) and a **save-progress
+button** on Java Lab, SQL Playground, Scenario Simulator and Mock Interview that
+keeps work-in-progress drafts on your device — they survive reloads and question
+switching, with a restore banner when you come back. Deep links like
+`/java-lab?cat=Core%20Java`, `/iam-lab?module=iga-saviynt` or `/flashcards?topic=IAM`
+open the exact topic — the Mind Map uses these to jump straight into any node.
 
 All progress persists in a local database (SQLite by default).
 
@@ -193,7 +204,8 @@ backend/
       sql_runner.py       read-only in-memory SQL sandbox
       evaluation.py       rule-based rubric + optional LLM
     routers/             java, sql, scenarios, mock, flashcards, iam,
-                         automation, resume, roadmap, analytics, settings
+                         automation, resume, roadmap, analytics, settings,
+                         mindmap, company
   tests/                 pytest suite
 frontend/                Next.js app (App Router, TypeScript, Tailwind, Monaco, Recharts)
 docker/

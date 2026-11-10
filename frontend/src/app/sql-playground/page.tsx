@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Database, Lightbulb, Play, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { CodeEditor } from "@/components/code-editor";
+import { SaveProgress } from "@/components/save-progress";
 import { cn, difficultyBadge } from "@/lib/utils";
 
 interface ChallengeMeta {
@@ -51,7 +52,16 @@ export default function SqlPlaygroundPage() {
   const [tab, setTab] = useState<"playground" | "challenges">("playground");
 
   useEffect(() => {
-    api.get<{ challenges: ChallengeMeta[] }>("/api/sql/challenges").then((r) => setChallenges(r.challenges)).catch((e) => setError(e.message));
+    api.get<{ challenges: ChallengeMeta[] }>("/api/sql/challenges").then((r) => {
+      setChallenges(r.challenges);
+      // Deep link support: /sql-playground?q=<challenge-id> opens that challenge directly.
+      const wanted = new URLSearchParams(window.location.search).get("q");
+      const match = wanted ? r.challenges.find((c) => c.id === wanted) : null;
+      if (match) {
+        setTab("challenges");
+        selectChallenge(match);
+      }
+    }).catch((e) => setError(e.message));
     api.get<{ tables: Record<string, [string, string][]> }>("/api/sql/schema").then((r) => setSchema(r.tables)).catch(() => {});
   }, []);
 
@@ -74,6 +84,9 @@ export default function SqlPlaygroundPage() {
     setSubmitResult(null);
     setResult(null);
     setError(null);
+    // Reset the editor to the scratch query so the previous challenge's SQL
+    // can't be accidentally submitted against this one.
+    setSql(DEFAULT_SQL);
     try {
       setDetail(await api.get<ChallengeDetail>(`/api/sql/challenges/${c.id}`));
     } catch (e) {
@@ -120,7 +133,7 @@ export default function SqlPlaygroundPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">SQL Playground</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           {challenges.length} challenges on a realistic IAM dataset. Every query runs against a
           fresh <strong>in-memory SQLite sandbox</strong> — read-only, isolated from the app database,
           and no credentials are ever exposed to the browser.
@@ -134,7 +147,7 @@ export default function SqlPlaygroundPage() {
             onClick={() => setTab(t)}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition",
-              tab === t ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+              tab === t ? "bg-indigo-600 text-white" : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             )}
           >
             {t === "playground" ? "Free playground" : "Challenges"}
@@ -143,25 +156,25 @@ export default function SqlPlaygroundPage() {
       </div>
 
       {error ? (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
         </div>
       ) : null}
 
       {schema ? (
-        <details className="rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-            <Database className="h-4 w-4 text-indigo-600" /> Data dictionary ({Object.keys(schema).length} tables)
+        <details className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Database className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Data dictionary ({Object.keys(schema).length} tables)
           </summary>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(schema).map(([table, cols]) => (
-              <div key={table} className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-1.5 font-mono text-xs font-bold text-indigo-700">{table}</p>
+              <div key={table} className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+                <p className="mb-1.5 font-mono text-xs font-bold text-indigo-700 dark:text-indigo-400">{table}</p>
                 <ul className="space-y-0.5">
                   {cols.map(([name, desc]) => (
-                    <li key={name} className="text-[11px] text-slate-600">
+                    <li key={name} className="text-[11px] text-slate-600 dark:text-slate-300">
                       <span className="font-mono font-medium">{name}</span>
-                      <span className="text-slate-400"> — {desc}</span>
+                      <span className="text-slate-400 dark:text-slate-500"> — {desc}</span>
                     </li>
                   ))}
                 </ul>
@@ -174,6 +187,12 @@ export default function SqlPlaygroundPage() {
       {tab === "playground" ? (
         <>
           <CodeEditor value={sql} onChange={setSql} language="sql" height={220} />
+          <SaveProgress
+            storageKey="sql:playground"
+            value={sql}
+            pristine={DEFAULT_SQL}
+            onRestore={setSql}
+          />
           <button
             onClick={runQuery}
             disabled={busy}
@@ -188,7 +207,7 @@ export default function SqlPlaygroundPage() {
           <aside className="max-h-[80vh] space-y-3 overflow-y-auto pr-1">
             {Object.entries(groupedChallenges).map(([cat, items]) => (
               <div key={cat}>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{cat}</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{cat}</p>
                 <div className="space-y-1.5">
                   {items.map((c) => (
                     <button
@@ -196,11 +215,11 @@ export default function SqlPlaygroundPage() {
                       onClick={() => selectChallenge(c)}
                       className={cn(
                         "w-full rounded-lg border p-2.5 text-left transition",
-                        selected?.id === c.id ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+                        selected?.id === c.id ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600"
                       )}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-[13px] font-medium text-slate-800">{c.title}</p>
+                        <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100">{c.title}</p>
                         <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", difficultyBadge(c.difficulty))}>
                           {c.difficulty}
                         </span>
@@ -214,18 +233,18 @@ export default function SqlPlaygroundPage() {
 
           <section className="space-y-4">
             {!selected ? (
-              <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500">
+              <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 dark:text-slate-400">
                 Pick a challenge to start.
               </div>
             ) : (
               <>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h2 className="font-semibold text-slate-900">{selected.title}</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{detail?.problem ?? selected.problem}</p>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">{selected.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{detail?.problem ?? selected.problem}</p>
                   {detail?.hints?.length ? (
                     <ul className="mt-3 space-y-1.5">
                       {detail.hints.map((h, i) => (
-                        <li key={i} className="flex items-start gap-1.5 rounded bg-amber-50 p-2 text-xs text-amber-900">
+                        <li key={i} className="flex items-start gap-1.5 rounded bg-amber-50 dark:bg-amber-950 p-2 text-xs text-amber-900 dark:text-amber-300">
                           <Lightbulb className="mt-0.5 h-3 w-3 shrink-0" /> {h}
                         </li>
                       ))}
@@ -234,6 +253,12 @@ export default function SqlPlaygroundPage() {
                 </div>
 
                 <CodeEditor value={sql} onChange={setSql} language="sql" height={200} />
+                <SaveProgress
+                  storageKey={`sql:${selected.id}`}
+                  value={sql}
+                  pristine={DEFAULT_SQL}
+                  onRestore={setSql}
+                />
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={submitAnswer}
@@ -245,7 +270,7 @@ export default function SqlPlaygroundPage() {
                   <button
                     onClick={revealAnswer}
                     disabled={busy}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   >
                     Load reference query
                   </button>
@@ -255,46 +280,46 @@ export default function SqlPlaygroundPage() {
                   <div
                     className={cn(
                       "rounded-xl border p-4",
-                      submitResult.correct ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
+                      submitResult.correct ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950" : "border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950"
                     )}
                   >
                     <div className="flex items-center gap-2 font-semibold">
                       {submitResult.correct ? (
                         <>
-                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                          <span className="text-emerald-800">Correct — result rows match the reference answer.</span>
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-emerald-800 dark:text-emerald-400">Correct — result rows match the reference answer.</span>
                         </>
                       ) : (
                         <>
-                          <XCircle className="h-5 w-5 text-rose-600" />
-                          <span className="text-rose-800">Not correct yet — compare your rows with the expected ones.</span>
+                          <XCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                          <span className="text-rose-800 dark:text-rose-400">Not correct yet — compare your rows with the expected ones.</span>
                         </>
                       )}
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">Row order is ignored; only the result set matters.</p>
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Row order is ignored; only the result set matters.</p>
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <p className="text-xs font-semibold text-slate-600">Your rows ({submitResult.your_rows.length})</p>
-                        <pre className="mt-1 max-h-48 overflow-auto rounded bg-white p-2 text-[11px]">
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Your rows ({submitResult.your_rows.length})</p>
+                        <pre className="mt-1 max-h-48 overflow-auto rounded bg-white dark:bg-slate-900 p-2 text-[11px]">
                           {submitResult.your_rows.map((r, i) => `${r.join(" | ")}`).join("\n") || "(empty)"}
                         </pre>
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-slate-600">Expected rows ({submitResult.expected_rows.length})</p>
-                        <pre className="mt-1 max-h-48 overflow-auto rounded bg-white p-2 text-[11px]">
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Expected rows ({submitResult.expected_rows.length})</p>
+                        <pre className="mt-1 max-h-48 overflow-auto rounded bg-white dark:bg-slate-900 p-2 text-[11px]">
                           {submitResult.expected_rows.map((r) => r.join(" | ")).join("\n") || "(empty)"}
                         </pre>
                       </div>
                     </div>
-                    <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
-                      <p className="text-sm text-slate-700">{submitResult.explanation}</p>
+                    <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{submitResult.explanation}</p>
                       {submitResult.security_note ? (
-                        <p className="rounded bg-slate-100 p-2 text-xs text-slate-700">
+                        <p className="rounded bg-slate-100 dark:bg-slate-800 p-2 text-xs text-slate-700 dark:text-slate-300">
                           <strong>Security note:</strong> {submitResult.security_note}
                         </p>
                       ) : null}
                       {submitResult.followups?.length ? (
-                        <ul className="list-inside list-disc text-xs text-slate-600">
+                        <ul className="list-inside list-disc text-xs text-slate-600 dark:text-slate-300">
                           {submitResult.followups.map((f, i) => (
                             <li key={i}>{f}</li>
                           ))}
@@ -315,15 +340,15 @@ export default function SqlPlaygroundPage() {
 function ResultTable({ result }: { result: QueryResult | null }) {
   if (!result) return null;
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <p className="border-b border-slate-200 px-4 py-2 text-xs text-slate-500">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      <p className="border-b border-slate-200 dark:border-slate-700 px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
         {result.row_count} row{result.row_count === 1 ? "" : "s"} returned{result.truncated ? " (truncated at 200)" : ""}
       </p>
       <table className="w-full text-left text-xs">
-        <thead className="bg-slate-50">
+        <thead className="bg-slate-50 dark:bg-slate-800/60">
           <tr>
             {result.columns.map((c) => (
-              <th key={c} className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700">
+              <th key={c} className="whitespace-nowrap px-3 py-2 font-semibold text-slate-700 dark:text-slate-300">
                 {c}
               </th>
             ))}
@@ -331,10 +356,10 @@ function ResultTable({ result }: { result: QueryResult | null }) {
         </thead>
         <tbody>
           {result.rows.map((row, i) => (
-            <tr key={i} className="border-t border-slate-100">
+            <tr key={i} className="border-t border-slate-100 dark:border-slate-800">
               {row.map((cell, j) => (
-                <td key={j} className="whitespace-nowrap px-3 py-1.5 font-mono text-slate-700">
-                  {cell === null ? <span className="text-slate-400">NULL</span> : String(cell)}
+                <td key={j} className="whitespace-nowrap px-3 py-1.5 font-mono text-slate-700 dark:text-slate-300">
+                  {cell === null ? <span className="text-slate-400 dark:text-slate-500">NULL</span> : String(cell)}
                 </td>
               ))}
             </tr>

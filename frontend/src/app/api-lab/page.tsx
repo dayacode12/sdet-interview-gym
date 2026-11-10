@@ -56,7 +56,7 @@ export default function ApiLabPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">API Testing Lab</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           REST Assured exercises: authentication/authorization matrices, request chaining,
           schema validation and database cross-checks — the four themes API interviews probe.
           Write your attempt in the editor, then compare with the model solution.
@@ -64,17 +64,17 @@ export default function ApiLabPage() {
       </header>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-start gap-2 text-sm text-slate-700">
-          <Webhook className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+        <div className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+          <Webhook className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
           <div>
             <p className="font-medium">The 401 vs 403 contract — assert both, never conflate:</p>
-            <ul className="mt-1.5 list-inside list-disc text-xs text-slate-600">
+            <ul className="mt-1.5 list-inside list-disc text-xs text-slate-600 dark:text-slate-300">
               <li>401 Unauthorized = missing or invalid credentials (not authenticated)</li>
               <li>403 Forbidden = valid credentials that lack permission (not authorized)</li>
             </ul>
@@ -93,11 +93,11 @@ export default function ApiLabPage() {
               }}
               className={cn(
                 "w-full rounded-lg border p-3 text-left transition",
-                selected?.id === c.id ? "border-indigo-400 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+                selected?.id === c.id ? "border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-950" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600"
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-medium leading-snug text-slate-800">{c.title}</p>
+                <p className="text-[13px] font-medium leading-snug text-slate-800 dark:text-slate-100">{c.title}</p>
                 <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold", difficultyBadge(c.difficulty))}>
                   {c.difficulty}
                 </span>
@@ -108,12 +108,12 @@ export default function ApiLabPage() {
 
         <section className="space-y-4">
           {selected ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h2 className="font-semibold text-slate-900">{selected.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">{selected.exercise}</p>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100">{selected.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{selected.exercise}</p>
             </div>
           ) : (
-            <div className="flex h-40 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500">
+            <div className="flex h-40 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500 dark:text-slate-400">
               Pick an exercise on the left.
             </div>
           )}
@@ -123,7 +123,7 @@ export default function ApiLabPage() {
           {selected && !revealed ? (
             <button
               onClick={reveal}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <Send className="h-4 w-4" /> Reveal model solution
             </button>
@@ -131,15 +131,15 @@ export default function ApiLabPage() {
 
           {revealed ? (
             <div className="space-y-3">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <Database className="h-3.5 w-3.5" /> Model solution
               </p>
-              <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+              <pre className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
                 {revealed.solution}
               </pre>
-              <p className="text-sm leading-relaxed text-slate-700">{revealed.explanation}</p>
+              <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{revealed.explanation}</p>
               {revealed.followups?.length ? (
-                <ul className="list-inside list-disc space-y-1 text-sm text-slate-700">
+                <ul className="list-inside list-disc space-y-1 text-sm text-slate-700 dark:text-slate-300">
                   {revealed.followups.map((f, i) => (
                     <li key={i}>{f}</li>
                   ))}

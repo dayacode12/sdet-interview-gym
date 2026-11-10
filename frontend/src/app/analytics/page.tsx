@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold">Progress Analytics</h1>
-        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Progress Analytics</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           Honest numbers only: everything below counts what you actually did in this app.
         </p>
       </header>
@@ -70,20 +70,20 @@ export default function AnalyticsPage() {
           { label: "Scenarios attempted", value: `${data?.scenarios.attempted ?? 0}/${data?.scenarios.total ?? 30}`, sub: data?.scenarios.average_score != null ? `avg ${data.scenarios.average_score}` : "no submissions yet" },
           { label: "Flashcards known", value: `${data?.flashcards.known ?? 0}/${data?.flashcards.total ?? 100}`, sub: `${data?.flashcards.needs_revision ?? 0} need revision` },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-medium text-slate-500">{stat.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stat.value}</p>
-            <p className="text-[11px] text-slate-500">{stat.sub}</p>
+          <div key={stat.label} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{stat.sub}</p>
           </div>
         ))}
       </section>
 
       {data?.mock?.sessions ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <h2 className="mb-3 flex items-center gap-1.5 font-semibold">
-            <TrendingUp className="h-4 w-4 text-indigo-600" /> Mock interviews
+            <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Mock interviews
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             {data.mock.sessions} session{data.mock.sessions === 1 ? "" : "s"} started, {data.mock.finished} finished.
             {data.mock.last_score != null ? ` Latest score: ${data.mock.last_score.toFixed(1)}.` : ""}
             {data.mock.best_score != null ? ` Best: ${data.mock.best_score.toFixed(1)}.` : ""}
@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
       ) : null}
 
       {dimensionData.length > 0 ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <h2 className="mb-3 font-semibold">Rubric dimension averages (across finished mocks)</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
       ) : null}
 
       {data?.weak_java_categories?.length ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <h2 className="mb-3 font-semibold">Weakest Java categories (pass rate, attempted only)</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -127,7 +127,7 @@ export default function AnalyticsPage() {
       ) : null}
 
       {data?.time_by_topic && Object.keys(data.time_by_topic).length > 0 ? (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <h2 className="mb-3 font-semibold">Time on topic (minutes)</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -141,7 +141,7 @@ export default function AnalyticsPage() {
           </div>
         </section>
       ) : (
-        <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
           No activity recorded yet — use the labs and charts will appear here.
         </p>
       )}

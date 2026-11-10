@@ -1,9 +1,20 @@
 @import "tailwindcss";
 
+/*
+ * Class-based dark mode: the <html> element carries .dark, set by the
+ * no-flash script in layout.tsx before paint and toggled by ThemeToggle.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f6f7fb;
   --foreground: #0f172a;
   --brand: #4f46e5;
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -13,14 +24,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/*
- * Single, deliberate light theme for the whole gym.
- * The previous dark-mode media query fought the light component styles
- * and the Arial override broke typography — both removed on purpose.
- */
 html {
   color-scheme: light;
   scroll-behavior: smooth;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -34,11 +43,18 @@ body {
   background: #c7d2fe;
   color: #1e1b4b;
 }
+.dark ::selection {
+  background: #4338ca;
+  color: #e0e7ff;
+}
 
 /* Slim scrollbars for the sidebar and question lists */
 * {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+.dark * {
+  scrollbar-color: #475569 transparent;
 }
 *::-webkit-scrollbar {
   width: 6px;
@@ -47,6 +63,9 @@ body {
 *::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: #475569;
 }
 *::-webkit-scrollbar-track {
   background: transparent;

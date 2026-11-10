@@ -25,8 +25,18 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen bg-background text-foreground antialiased">
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        {/* Set the theme before first paint so dark mode never flashes.
+            Mirrors ThemeToggle's contract: explicit choice in localStorage,
+            otherwise the OS preference. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches);if(d){document.documentElement.classList.add("dark")}}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-background text-foreground antialiased transition-colors">
         <div className="flex min-h-screen flex-col md:flex-row">
           <Sidebar />
           <main className="min-w-0 flex-1 overflow-x-hidden">
