@@ -20,7 +20,7 @@ services:
         fromDatabase:
           name: sdet-interview-gym-db
           property: connectionString
-      # JDK 17 is baked into the image, so candidate Java code really compiles
+      # JDK 21 is baked into the image, so candidate Java code really compiles
       # and runs ("local" subprocess mode). Never faked.
       - key: JAVA_EXECUTION_MODE
         value: local

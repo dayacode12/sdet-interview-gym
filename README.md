@@ -113,7 +113,7 @@ The repo ships deployment wiring for both free tiers:
 | **Backend API** | Render blueprint: Docker service + managed PostgreSQL | `render.yaml`, `backend/Dockerfile` |
 | **UI** | GitHub Actions workflow: static export of the Next.js app | `.github/workflows/deploy-ui.yml`, `frontend/next.config.ts` |
 
-The Render image bakes in a JDK 17, so candidate Java code still really compiles
+The Render image bakes in a JDK 21, so candidate Java code still really compiles
 and runs there (`JAVA_EXECUTION_MODE=local` subprocess mode — Docker-in-Docker is
 not available on Render). Progress persists in managed PostgreSQL
 (`DATABASE_URL` is wired automatically by the blueprint).
