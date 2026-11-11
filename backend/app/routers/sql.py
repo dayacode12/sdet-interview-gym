@@ -8,11 +8,20 @@ from app.content import sql_challenges
 from app.database import get_db
 from app.models import Attempt
 from app.schemas import SqlRunRequest, SqlSubmitRequest
-from app.services import sql_runner
+from app.services import sql_explain, sql_runner
 
 router = APIRouter(prefix="/api/sql", tags=["sql"])
 
 _HIDDEN = {"expected_sql", "explanation", "followups"}
+
+
+def _english(sql: str) -> dict | None:
+    """Best-effort English translation for a reference query. Never raises —
+    a translation failure must not break submitting or revealing."""
+    try:
+        return sql_explain.explain(sql)
+    except Exception:  # noqa: BLE001 - defensive by design
+        return None
 
 
 def _grade_rows(user_rows: list, expected_rows: list) -> bool:
@@ -57,6 +66,15 @@ def run_sql(req: SqlRunRequest):
         raise HTTPException(400, str(exc))
 
 
+@router.post("/explain")
+def explain_sql(req: SqlRunRequest):
+    """Translate a query into plain English. Parsing only — nothing is executed."""
+    try:
+        return sql_explain.explain(req.sql)
+    except sql_explain.SqlExplainError as exc:
+        raise HTTPException(422, str(exc))
+
+
 @router.post("/challenges/{challenge_id}/submit")
 def submit_sql(challenge_id: str, req: SqlSubmitRequest, db: Session = Depends(get_db)):
     c = sql_challenges.get_challenge(challenge_id)
@@ -95,6 +113,7 @@ def submit_sql(challenge_id: str, req: SqlSubmitRequest, db: Session = Depends(g
         "expected_rows": expected_rows,
         "row_order_ignored": True,
         "expected_sql": c["expected_sql"],
+        "expected_english": _english(c["expected_sql"]),
         "explanation": c["explanation"],
         "security_note": c["security_note"],
         "followups": c["followups"],
@@ -112,6 +131,7 @@ def reveal_sql(challenge_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {
         "expected_sql": c["expected_sql"],
+        "expected_english": _english(c["expected_sql"]),
         "expected_rows": sql_runner.run_expected(c["expected_sql"]),
         "explanation": c["explanation"],
         "security_note": c["security_note"],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Database, Lightbulb, Play, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, Languages, Lightbulb, Play, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { CodeEditor } from "@/components/code-editor";
 import { SaveProgress } from "@/components/save-progress";
@@ -32,9 +32,20 @@ interface SubmitResult {
   your_rows: (string | number | null)[][];
   expected_rows: (string | number | null)[][];
   expected_sql: string;
+  expected_english?: SqlEnglish | null;
   explanation: string;
   security_note: string;
   followups: string[];
+}
+
+interface SqlEnglish {
+  statement: string;
+  summary: string;
+  clauses: { label: string; text: string }[];
+  basics?: { term: string; text: string }[];
+  tables: string[];
+  subqueries: number;
+  notes: string[];
 }
 
 const DEFAULT_SQL = "SELECT username, status FROM USERS ORDER BY username LIMIT 10";
@@ -50,6 +61,8 @@ export default function SqlPlaygroundPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"playground" | "challenges">("playground");
+  const [explanation, setExplanation] = useState<SqlEnglish | null>(null);
+  const [explainBusy, setExplainBusy] = useState(false);
 
   useEffect(() => {
     api.get<{ challenges: ChallengeMeta[] }>("/api/sql/challenges").then((r) => {
@@ -79,11 +92,25 @@ export default function SqlPlaygroundPage() {
     }
   }
 
+  async function explainSql() {
+    setExplainBusy(true);
+    setError(null);
+    try {
+      setExplanation(await api.post<SqlEnglish>("/api/sql/explain", { sql }));
+    } catch (e) {
+      setExplanation(null);
+      setError((e as Error).message);
+    } finally {
+      setExplainBusy(false);
+    }
+  }
+
   async function selectChallenge(c: ChallengeMeta) {
     setSelected(c);
     setSubmitResult(null);
     setResult(null);
     setError(null);
+    setExplanation(null);
     // Reset the editor to the scratch query so the previous challenge's SQL
     // can't be accidentally submitted against this one.
     setSql(DEFAULT_SQL);
@@ -113,7 +140,12 @@ export default function SqlPlaygroundPage() {
     if (!selected) return;
     setBusy(true);
     try {
-      setSql((await api.post<{ expected_sql: string }>(`/api/sql/challenges/${selected.id}/reveal`)).expected_sql);
+      const r = await api.post<{ expected_sql: string; expected_english: SqlEnglish | null }>(
+        `/api/sql/challenges/${selected.id}/reveal`
+      );
+      setSql(r.expected_sql);
+      // The reference query arrives with its English translation — show it.
+      setExplanation(r.expected_english ?? null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -136,7 +168,9 @@ export default function SqlPlaygroundPage() {
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           {challenges.length} challenges on a realistic IAM dataset. Every query runs against a
           fresh <strong>in-memory SQLite sandbox</strong> — read-only, isolated from the app database,
-          and no credentials are ever exposed to the browser.
+          and no credentials are ever exposed to the browser. Reading a query you don't
+          understand? Hit <strong>Explain in English</strong> and get a clause-by-clause plain-English
+          translation — every reference answer ships with one too.
         </p>
       </header>
 
@@ -144,7 +178,10 @@ export default function SqlPlaygroundPage() {
         {(["playground", "challenges"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              setExplanation(null); // the panel belongs to the editor of one tab
+            }}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition",
               tab === t ? "bg-indigo-600 text-white" : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -193,13 +230,23 @@ export default function SqlPlaygroundPage() {
             pristine={DEFAULT_SQL}
             onRestore={setSql}
           />
-          <button
-            onClick={runQuery}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" /> {busy ? "Running…" : "Run query"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={runQuery}
+              disabled={busy}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <Play className="h-4 w-4" /> {busy ? "Running…" : "Run query"}
+            </button>
+            <button
+              onClick={explainSql}
+              disabled={explainBusy}
+              className="flex items-center gap-1.5 rounded-lg border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950 disabled:opacity-50"
+            >
+              <Languages className="h-4 w-4" /> {explainBusy ? "Translating…" : "Explain in English"}
+            </button>
+          </div>
+          {explanation ? <EnglishPanel english={explanation} /> : null}
           <ResultTable result={result} />
         </>
       ) : (
@@ -274,7 +321,16 @@ export default function SqlPlaygroundPage() {
                   >
                     Load reference query
                   </button>
+                  <button
+                    onClick={explainSql}
+                    disabled={explainBusy}
+                    className="flex items-center gap-1.5 rounded-lg border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950 disabled:opacity-50"
+                  >
+                    <Languages className="h-4 w-4" /> {explainBusy ? "Translating…" : "Explain in English"}
+                  </button>
                 </div>
+
+                {explanation ? <EnglishPanel english={explanation} /> : null}
 
                 {submitResult ? (
                   <div
@@ -313,6 +369,9 @@ export default function SqlPlaygroundPage() {
                     </div>
                     <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
                       <p className="text-sm text-slate-700 dark:text-slate-300">{submitResult.explanation}</p>
+                      {submitResult.expected_english ? (
+                        <EnglishPanel english={submitResult.expected_english} title="The reference answer, in English" />
+                      ) : null}
                       {submitResult.security_note ? (
                         <p className="rounded bg-slate-100 dark:bg-slate-800 p-2 text-xs text-slate-700 dark:text-slate-300">
                           <strong>Security note:</strong> {submitResult.security_note}
@@ -333,6 +392,52 @@ export default function SqlPlaygroundPage() {
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function EnglishPanel({ english, title = "In plain English" }: { english: SqlEnglish; title?: string }) {
+  return (
+    <div className="rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-sky-900 dark:text-sky-300">
+          <Languages className="h-4 w-4 shrink-0" /> {title}
+        </p>
+        <span className="rounded-full bg-sky-100 dark:bg-sky-900 px-2.5 py-0.5 text-[10px] font-semibold text-sky-800 dark:text-sky-300">
+          {english.statement} · tables: {english.tables.join(", ") || "none"}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-slate-800 dark:text-slate-200">{english.summary}</p>
+      <div className="mt-3 space-y-1.5">
+        {english.clauses.map((c, i) => (
+          <div key={i} className="flex flex-wrap items-baseline gap-2">
+            <span className="shrink-0 rounded bg-sky-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
+              {c.label}
+            </span>
+            <span className="min-w-0 flex-1 text-xs leading-relaxed text-slate-700 dark:text-slate-300">{c.text}</span>
+          </div>
+        ))}
+      </div>
+      {english.basics?.length ? (
+        <div className="mt-3 rounded-lg border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 p-3">
+          <p className="text-xs font-semibold text-sky-900 dark:text-sky-300">
+            SQL basics in this query — what each term means, using your own query
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {english.basics.map((b, i) => (
+              <li key={i} className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                <span className="font-semibold text-sky-700 dark:text-sky-400">{b.term}: </span>
+                {b.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {english.notes?.length ? (
+        <p className="mt-3 border-t border-sky-200 dark:border-sky-800 pt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          {english.notes.join(" ")}
+        </p>
+      ) : null}
     </div>
   );
 }
