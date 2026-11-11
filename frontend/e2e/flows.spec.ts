@@ -1,8 +1,66 @@
-import { expect, test } from "@playwright/test";
+import { expect, test as baseTest } from "@playwright/test";
 
-// Key flows: navigation works across all 16 pages, the Java lab really runs code,
+// Key flows: the login gate locks the site and lets only the owner in,
+// navigation works across all 16 pages, the Java lab really runs code,
 // the SQL playground really grades a query, the mock interview times and scores,
-// the interview plan checklist persists, and drafts survive reloads.
+// the interview plan checklist persists, drafts survive reloads, and the sidebar
+// collapses to a full-width view and remembers the choice.
+
+// The app sits behind a client-side login gate (src/lib/auth.ts). Every flow
+// test below runs as an already-signed-in user: the fixture pre-seeds the
+// session token — the same value a successful sign-in writes. The login-gate
+// tests use the plain baseTest on purpose, starting locked.
+const AUTH_KEY = "sdet-gym-auth";
+const AUTH_TOKEN = "c85e4b23455aeaee349c8e0a57347644f7c99ebb134d72a5284a864f9ee39166"; // keep in sync with src/lib/auth.ts
+
+const test = baseTest.extend<{ authed: void }>({
+  authed: [
+    async ({ page }, use) => {
+      await page.addInitScript(
+        (args: { key: string; token: string }) => {
+          window.localStorage.setItem(args.key, args.token);
+        },
+        { key: AUTH_KEY, token: AUTH_TOKEN }
+      );
+      await use();
+    },
+    { auto: true },
+  ],
+});
+
+baseTest("login gate locks the site and rejects wrong credentials", async ({ page }) => {
+  await page.goto("/");
+  // Locked: the sign-in card is the homepage; the app behind it stays hidden.
+  await expect(page.getByRole("heading", { name: "SDET Interview Gym" })).toBeVisible();
+  await expect(page.getByLabel("Username")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /welcome back/i })).toHaveCount(0);
+  // Wrong credentials get an honest rejection, and the app stays locked.
+  await page.getByLabel("Username").fill("dayacode12");
+  await page.getByLabel("Password").fill("definitely-wrong");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Incorrect username or password.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /welcome back/i })).toHaveCount(0);
+});
+
+baseTest("login gate opens with correct credentials and remembers the session", async ({ page }) => {
+  // Credentials come from the environment — the plaintext password is never
+  // committed to this public repo. Run locally with E2E_AUTH_USER/E2E_AUTH_PASS.
+  baseTest.skip(
+    !process.env.E2E_AUTH_USER || !process.env.E2E_AUTH_PASS,
+    "set E2E_AUTH_USER and E2E_AUTH_PASS to run"
+  );
+  await page.goto("/");
+  await page.getByLabel("Username").fill(process.env.E2E_AUTH_USER!);
+  await page.getByLabel("Password").fill(process.env.E2E_AUTH_PASS!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible({ timeout: 15000 });
+  // The session survives a reload.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
+  // Signing out (desktop sidebar footer) locks the gym again.
+  await page.locator("aside").getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByLabel("Username")).toBeVisible();
+});
 
 test("all 16 pages render without errors", async ({ page }) => {
   const pages = [
@@ -14,6 +72,28 @@ test("all 16 pages render without errors", async ({ page }) => {
     const resp = await page.goto(path);
     expect(resp?.status(), `page ${path} should load`).toBeLessThan(400);
   }
+});
+
+test("sidebar collapses for a full-width view and reopens", async ({ page }) => {
+  await page.goto("/");
+  const sidebar = page.getByRole("complementary", { name: "Main navigation" });
+  await expect(sidebar).toBeVisible();
+  // Sanity: with the sidebar open the content column is capped at max-w-5xl.
+  await expect(page.locator(".content-shell")).toHaveCSS("max-width", "1024px");
+  // Collapse: the aside hides, a reopen button appears, and the content column
+  // drops its max width so the page uses the full width.
+  await page.getByRole("button", { name: "Collapse sidebar" }).click();
+  await expect(sidebar).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open sidebar" })).toBeVisible();
+  await expect(page.locator(".content-shell")).toHaveCSS("max-width", "none");
+  // The choice persists across reloads (localStorage, same contract as the theme).
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Open sidebar" })).toBeVisible();
+  await expect(sidebar).toBeHidden();
+  // Reopen restores the sidebar and the capped width.
+  await page.getByRole("button", { name: "Open sidebar" }).click();
+  await expect(sidebar).toBeVisible();
+  await expect(page.locator(".content-shell")).toHaveCSS("max-width", "1024px");
 });
 
 test("mind map loads the tree and deep-links a topic", async ({ page }) => {
@@ -80,6 +160,35 @@ test("sql playground runs a query and blocks writes", async ({ page }) => {
   // Default query runs
   await page.getByRole("button", { name: /run query/i }).click();
   await expect(page.getByText(/row(s)? returned/i)).toBeVisible({ timeout: 15000 });
+});
+
+test("sql playground translates a query into plain english", async ({ page }) => {
+  await page.goto("/sql-playground");
+  await expect(page.getByRole("heading", { name: "SQL Playground" })).toBeVisible();
+  await page.getByRole("button", { name: /explain in english/i }).click();
+  await expect(page.getByText("In plain English")).toBeVisible({ timeout: 15000 });
+  // The default query reads USERS and the panel says so, clause by clause.
+  await expect(page.getByText(/tables: USERS/i)).toBeVisible();
+  await expect(page.getByText("Returns username and status").first()).toBeVisible();
+  // The basics layer teaches table/column/field/row using this query's names.
+  await expect(page.getByText(/SQL basics in this query/i)).toBeVisible();
+  await expect(page.getByText(/A table stores data like a spreadsheet/i)).toBeVisible();
+  await expect(page.getByText(/A row is one record/i)).toBeVisible();
+  // The honesty note is part of the feature, not decoration.
+  await expect(page.getByText(/nothing is executed, nothing is stored/i)).toBeVisible();
+});
+
+test("sql challenge submit and reveal both explain the reference answer in english", async ({ page }) => {
+  await page.goto("/sql-playground");
+  await page.getByRole("button", { name: /challenges/i }).click();
+  const first = page.locator("main aside button").first();
+  await first.click();
+  // Submitting a wrong answer still ships the reference query's translation.
+  await page.getByRole("button", { name: /submit answer/i }).click();
+  await expect(page.getByText("The reference answer, in English")).toBeVisible({ timeout: 15000 });
+  // Reveal loads the reference query and shows its translation directly.
+  await page.getByRole("button", { name: /load reference query/i }).click();
+  await expect(page.getByText("In plain English")).toBeVisible({ timeout: 15000 });
 });
 
 test("sql challenge grading gives honest feedback", async ({ page }) => {

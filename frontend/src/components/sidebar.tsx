@@ -19,11 +19,14 @@ import {
   Library,
   Mic,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SignOutButton } from "@/components/auth-gate";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -73,6 +76,21 @@ function HonestyNote() {
   );
 }
 
+/**
+ * Collapse the desktop sidebar on/off. No React state on purpose: the CSS
+ * class on <html> does the work (set before first paint by the script in
+ * layout.tsx), so collapsing and reloading never flashes. Mirrors
+ * ThemeToggle's contract, including the localStorage fallback.
+ */
+function setSidebarCollapsed(next: boolean) {
+  document.documentElement.classList.toggle("sidebar-collapsed", next);
+  try {
+    localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+  } catch {
+    /* storage unavailable — still collapses for this session */
+  }
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const activeIndex = NAV.findIndex((n) => n.href === pathname);
@@ -80,9 +98,21 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 md:flex">
-        <div className="border-b border-slate-200/80 dark:border-slate-700/80 px-4 py-4">
+      <aside
+        aria-label="Main navigation"
+        className="desktop-sidebar sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 md:flex"
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/80 px-4 py-4">
           <Brand />
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            <PanelLeftClose className="h-3.5 w-3.5" />
+          </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {NAV.map(({ href, label, icon: Icon }) => {
@@ -113,17 +143,34 @@ export function Sidebar() {
             );
           })}
         </nav>
-        <div className="border-t border-slate-200/80 dark:border-slate-700/80 px-4 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-700/80 px-4 py-3">
           <ThemeToggle />
+          <SignOutButton />
         </div>
         <HonestyNote />
       </aside>
+
+      {/* Reopen button. Lives OUTSIDE the aside (a fixed-position child of a
+          display:none element would never render). Visibility is CSS-driven:
+          hidden by default, shown only on desktop while collapsed. */}
+      <button
+        type="button"
+        onClick={() => setSidebarCollapsed(false)}
+        aria-label="Open sidebar"
+        title="Open sidebar"
+        className="sidebar-open-fab fixed left-3 top-3 z-50 h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-indigo-400"
+      >
+        <PanelLeftOpen className="h-4 w-4" />
+      </button>
 
       {/* Mobile top bar + scrollable nav */}
       <div className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur md:hidden">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <Brand />
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
         </div>
         <nav className="scrollbar-none flex gap-1 overflow-x-auto px-3 pb-2">
           {NAV.map(({ href, label, icon: Icon }) => {

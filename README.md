@@ -22,7 +22,7 @@ SQL really runs against a sandboxed database, and nothing is ever faked.**
 | **Interview Plan** | The 2-day countdown to the interview: per-day checklists around a day job (saved locally), reverse questions, key Schwab numbers, compensation snapshot (Levels.fyi) |
 | **Java Lab** | 32 questions (core Java + automation-focused) with a real run-button, stdin/stdout test harness, hints and solutions |
 | **Automation Lab** | 12 Selenium / Playwright / REST Assured coding exercises + framework architecture Q&A |
-| **SQL Playground** | 26 challenges on a seeded IAM dataset (users, roles, access requests, certifications, provisioning logs) with realistic defects planted; free-query sandbox |
+| **SQL Playground** | 26 challenges on a seeded IAM dataset (users, roles, access requests, certifications, provisioning logs) with realistic defects planted; free-query sandbox; **SQL → English translator** — any SELECT is parsed server-side (sqlglot, SQLite dialect) into a clause-by-clause plain-English explanation with a beginner "SQL basics" layer (what tables, columns, fields, rows, joins and aliases are, grounded in the query's own names); every reference answer ships with its English translation on submit and reveal |
 | **IAM Lab** | 5 modules (IAM fundamentals, IGA/Saviynt, PAM/CyberArk, auth protocols, DLP) with concepts, architecture, interview Q&A, test cases and server-graded quizzes |
 | **Scenario Simulator** | 30 enterprise security QA scenarios, scored against a 5-dimension rubric with full model answers |
 | **Mock Interview** | 60-minute timed interview, 6 sections, 22 questions, weighted rubric (technical 30% / practical 25% / problem-solving 20% / communication 15% / security 10%) |
@@ -31,8 +31,19 @@ SQL really runs against a sandboxed database, and nothing is ever faked.**
 | **Analytics** | Progress, weak Java categories, mock history, time-on-topic |
 | **Cheat Sheet** | Tabbed last-mile revision: overview, cheat codes, comparisons, traps, drill, topics — plus HTTP status reference |
 
+The whole site sits behind a **sign-in gate** — a clean lock screen that only
+opens for the owner. Only a salted SHA-256 hash of the credentials is committed,
+never the plaintext, and the session persists on your device until you press
+"Sign out". Honest limit: this is a client-side gate on a static host (GitHub
+Pages) — it keeps out visitors without the credentials, but it is not
+server-grade security; the practice API on Render stays public (read-only
+practice data, nothing personal).
+
 16 pages total, with a **dark mode toggle** (bottom of the sidebar; follows your OS
-preference by default, and remembers an explicit choice) and a **save-progress
+preference by default, and remembers an explicit choice), a **collapsible sidebar**
+(hide it with the button in its header — every page then uses the full width — and
+bring it back from the floating button; the choice is remembered across reloads),
+and a **save-progress
 button** on Java Lab, SQL Playground, Scenario Simulator and Mock Interview that
 keeps work-in-progress drafts on your device — they survive reloads and question
 switching, with a restore banner when you come back. Deep links like
@@ -202,6 +213,7 @@ backend/
     services/
       java_executor.py   docker/local/disabled execution — never fakes
       sql_runner.py       read-only in-memory SQL sandbox
+      sql_explain.py      SQL → English translator (sqlglot parse, no LLM)
       evaluation.py       rule-based rubric + optional LLM
     routers/             java, sql, scenarios, mock, flashcards, iam,
                          automation, resume, roadmap, analytics, settings,
