@@ -21,6 +21,7 @@ export default function RoadmapPage() {
   const [roadmap, setRoadmap] = useState<RoadmapDay[]>([]);
   const [priority, setPriority] = useState<string[]>([]);
   const [interviewDate, setInterviewDate] = useState("");
+  const [interviewTime, setInterviewTime] = useState("09:00");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +30,19 @@ export default function RoadmapPage() {
       setRoadmap(r.roadmap);
       setPriority(r.priority_questions);
     }).catch((e) => setError(e.message));
-    api.get<{ interview_datetime: string }>("/api/settings").then((r) => setInterviewDate(r.interview_datetime?.slice(0, 10) ?? "")).catch(() => {});
+    api.get<{ interview_datetime: string }>("/api/settings").then((r) => {
+      const raw = r.interview_datetime ?? "";
+      setInterviewDate(raw.slice(0, 10));
+      const time = raw.slice(11, 16);
+      if (/^\d{2}:\d{2}$/.test(time)) setInterviewTime(time);
+    }).catch(() => {});
   }, []);
 
   async function saveDate() {
     try {
-      await api.put("/api/settings", { interview_datetime: interviewDate ? `${interviewDate}T09:00:00` : "" });
+      await api.put("/api/settings", {
+        interview_datetime: interviewDate ? `${interviewDate}T${interviewTime}:00` : "",
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
@@ -43,7 +51,7 @@ export default function RoadmapPage() {
   }
 
   const daysLeft = interviewDate
-    ? Math.ceil((new Date(interviewDate).getTime() - Date.now()) / 86400000)
+    ? Math.ceil((new Date(`${interviewDate}T${interviewTime}:00`).getTime() - Date.now()) / 86400000)
     : null;
 
   return (
@@ -70,6 +78,17 @@ export default function RoadmapPage() {
             type="date"
             value={interviewDate}
             onChange={(e) => setInterviewDate(e.target.value)}
+            className="mt-1 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <Clock className="h-3.5 w-3.5" /> Interview time
+          </label>
+          <input
+            type="time"
+            value={interviewTime}
+            onChange={(e) => setInterviewTime(e.target.value)}
             className="mt-1 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
           />
         </div>

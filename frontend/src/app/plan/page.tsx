@@ -1,26 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   CalendarClock,
+  CalendarDays,
+  Clock,
   Coffee,
   HelpCircle,
   ListChecks,
   Moon,
   Rocket,
+  Save,
   Sun,
   Target,
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "plan-progress";
-const INTERVIEW_AT = new Date("2026-11-12T21:00:00").getTime();
-const DAY_2_START = new Date("2026-11-11T00:00:00").getTime();
-const DAY_3_START = new Date("2026-11-12T00:00:00").getTime();
+// Used only until the server settings load (or when no date has been saved yet).
+const DEFAULT_INTERVIEW_AT = new Date("2026-11-12T21:00:00").getTime();
+const DAY_MS = 86_400_000;
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 interface PlanItem {
   id: string;
@@ -31,7 +39,9 @@ interface PlanItem {
 }
 
 interface PlanBlock {
-  id: "nov-10" | "nov-11" | "nov-12";
+  id: "two-before" | "day-before" | "interview-day";
+  offset: -2 | -1 | 0;
+  start: number;
   when: string;
   date: string;
   subtitle: string;
@@ -40,152 +50,251 @@ interface PlanBlock {
   items: PlanItem[];
 }
 
-const DAYS: PlanBlock[] = [
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function addDays(ms: number, days: number): number {
+  const d = new Date(ms);
+  d.setDate(d.getDate() + days);
+  return d.getTime();
+}
+
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function fmtWeekdayDate(ms: number): string {
+  const d = new Date(ms);
+  return `${WEEKDAYS[d.getDay()].slice(0, 3)}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+function fmtLongDate(ms: number): string {
+  const d = new Date(ms);
+  return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+function fmtClock(ms: number): string {
+  const d = new Date(ms);
+  const hours = d.getHours();
+  const h = hours % 12 === 0 ? 12 : hours % 12;
+  return `${h}:${pad(d.getMinutes())} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+/** Clock time for the interview day, noting when it lands on the previous day. */
+function fmtClockOnAnchor(ms: number, anchor: number): string {
+  const sameDay = new Date(ms).toDateString() === new Date(anchor).toDateString();
+  return sameDay ? fmtClock(ms) : `${fmtClock(ms)} (previous day)`;
+}
+
+function fmtCountdown(ms: number): string {
+  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days} day${days === 1 ? "" : "s"} ${hours} hr`;
+  if (hours > 0) return `${hours} hr ${minutes} min`;
+  return `${minutes} min`;
+}
+
+function toDateInput(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toTimeInput(ms: number): string {
+  const d = new Date(ms);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseDateTimeInput(date: string, time: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const clock = /^\d{2}:\d{2}$/.test(time) ? time : "21:00";
+  const parsed = new Date(`${date}T${clock}:00`).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function dayName(offset: -2 | -1 | 0, dayStart: number, todayStart: number | null): string {
+  if (offset === 0) return "Interview day";
+  if (todayStart !== null) {
+    const delta = Math.round((startOfDay(dayStart) - todayStart) / DAY_MS);
+    if (delta === 0) return offset === -2 ? "Tonight" : "Today";
+    if (delta === 1) return "Tomorrow";
+    if (delta === -1) return "Yesterday";
+  }
+  return offset === -2 ? "Two days before" : "The day before";
+}
+
+const TWO_DAYS_BEFORE_ITEMS: PlanItem[] = [
   {
-    id: "nov-10",
-    when: "Tonight",
-    date: "Tue, Nov 10",
-    subtitle: "45 minutes total — then stop and sleep on time",
-    tone: "night",
-    icon: Moon,
-    items: [
-      {
-        id: "n10-company",
-        label: "Read the Company Brief end to end",
-        minutes: 30,
-        href: "/company",
-        note: "Mission, the four values (say each out loud with your QA angle), the scale numbers, the 5-step hiring process.",
-      },
-      {
-        id: "n10-drill",
-        label: "Quick-facts drill with answers covered",
-        minutes: 10,
-        href: "/company",
-        note: "Stay on the drill at the bottom of the page until you can answer 12 of 14.",
-      },
-      {
-        id: "n10-map",
-        label: "Open the Mind Map and expand every branch once",
-        minutes: 5,
-        href: "/mind-map",
-        note: "The goal is the whole territory in view so nothing surprises you — not memorizing it.",
-      },
-      {
-        id: "n10-sleep",
-        label: "Stop. Sleep on time",
-        note: "Cramming tonight costs you recall tomorrow — the trade is a bad one.",
-      },
-    ],
+    id: "n10-company",
+    label: "Read the Company Brief end to end",
+    minutes: 30,
+    href: "/company",
+    note: "Mission, the four values (say each out loud with your QA angle), the scale numbers, the 5-step hiring process.",
   },
   {
-    id: "nov-11",
-    when: "The main prep day",
-    date: "Wed, Nov 11",
-    subtitle: "~3 hours around your job — morning, lunch and one protected evening block",
-    tone: "main",
-    icon: Sun,
-    items: [
-      {
-        id: "n11-pitch",
-        label: "Write your 90-second pitch, then say it out loud 3×",
-        minutes: 30,
-        href: "/resume",
-        note: "SDET → IAM/IGA for TCS/Admiral → Playwright migration (60→40 min) → 300+ cases → why Schwab. This is the single highest-value half hour of the two days.",
-      },
-      {
-        id: "n11-work",
-        label: "Work — no studying at your desk",
-        note: "Keep the job intact; your lunch slot covers flashcards.",
-      },
-      {
-        id: "n11-lunch",
-        label: "Flashcards on your phone: IAM Fundamentals + IGA",
-        minutes: 20,
-        href: "/flashcards?topic=IAM",
-        note: "The hosted site works on mobile — commute or lunch, either is fine.",
-      },
-      {
-        id: "n11-mock",
-        label: "Full timed mock interview — the dress rehearsal",
-        minutes: 45,
-        href: "/mock-interview",
-        note: "Don't skip this. Afterwards, read the rubric feedback on your two weakest answers.",
-      },
-      {
-        id: "n11-stories",
-        label: "Three anchor stories out loud, S.T.A.R.",
-        minutes: 25,
-        href: "/resume",
-        note: "Playwright migration, the 300+ case suite, and one cross-layer debugging investigation (UI vs API vs logs vs SQL).",
-      },
-      {
-        id: "n11-java",
-        label: "Five timed Java Lab questions, then read the solutions",
-        minutes: 25,
-        href: "/java-lab",
-        note: "15 minutes for the five, 10 minutes reading the model answers.",
-      },
-      {
-        id: "n11-scenarios",
-        label: "Two scenarios in writing, then compare with the model",
-        minutes: 25,
-        href: "/scenarios",
-        note: "Terminated-user-retains-access, plus one data-mismatch scenario. Use the save button if you need to pause mid-answer.",
-      },
-    ],
+    id: "n10-drill",
+    label: "Quick-facts drill with answers covered",
+    minutes: 10,
+    href: "/company",
+    note: "Stay on the drill at the bottom of the page until you can answer 12 of 14.",
   },
   {
-    id: "nov-12",
-    when: "Interview day — light",
-    date: "Thu, Nov 12",
-    subtitle: "Protect your energy. No new material today.",
-    tone: "final",
-    icon: Rocket,
-    items: [
-      {
-        id: "n12-morning",
-        label: "Cheat Sheet — Overview tab only",
-        minutes: 20,
-        href: "/cheatsheet?tab=overview",
-        note: "The 10-second scan table and the big picture. Nothing else.",
-      },
-      {
-        id: "n12-lunch",
-        label: "Quick-facts drill once more + rehearse your reverse questions",
-        minutes: 15,
-        href: "/company",
-        note: "Pick your two questions below and say them out loud once each.",
-      },
-      {
-        id: "n12-stop",
-        label: "6:00 PM — stop studying. Eat a real dinner",
-        note: "Anything learned after this point does not stick; it only adds noise.",
-      },
-      {
-        id: "n12-tech",
-        label: "8:15 PM — tech setup",
-        note: "Quiet room, webcam/mic test, phone hotspot as backup, water, résumé + the numbers below open in tabs.",
-      },
-      {
-        id: "n12-warm",
-        label: "8:45 PM — say the pitch out loud one last time",
-        note: "Then read only the final mnemonic line on the cheat sheet.",
-      },
-      {
-        id: "n12-go",
-        label: "9:00 PM — go. First 90 seconds = the pitch",
-        note: "You've prepared more thoroughly than most candidates prepare for anything.",
-      },
-    ],
+    id: "n10-map",
+    label: "Open the Mind Map and expand every branch once",
+    minutes: 5,
+    href: "/mind-map",
+    note: "The goal is the whole territory in view so nothing surprises you — not memorizing it.",
+  },
+  {
+    id: "n10-sleep",
+    label: "Stop. Sleep on time",
+    note: "Cramming on this night costs you recall the next day — the trade is a bad one.",
   },
 ];
 
-const JOB_RULES = [
-  "Tomorrow: work ends at 6 PM and the evening block is sacred. No “quick check” of work email after dinner.",
-  "Nov 12: if WFH or a half-day is possible, take it — a 9–10 PM interview after a full office day is draining. If not, take a real lunch break away from your desk and zero prep after 6 PM.",
-  "Commute and lunch = flashcards (phone). Evening = out-loud practice (the hard, high-value part). Never swap these.",
-  "Keep it confidential at your current company until you have an offer in hand.",
+const DAY_BEFORE_ITEMS: PlanItem[] = [
+  {
+    id: "n11-pitch",
+    label: "Write your 90-second pitch, then say it out loud 3×",
+    minutes: 30,
+    href: "/resume",
+    note: "SDET → IAM/IGA for TCS/Admiral → Playwright migration (60→40 min) → 300+ cases → why Schwab. This is the single highest-value half hour of the two days.",
+  },
+  {
+    id: "n11-work",
+    label: "Work — no studying at your desk",
+    note: "Keep the job intact; your lunch slot covers flashcards.",
+  },
+  {
+    id: "n11-lunch",
+    label: "Flashcards on your phone: IAM Fundamentals + IGA",
+    minutes: 20,
+    href: "/flashcards?topic=IAM",
+    note: "The hosted site works on mobile — commute or lunch, either is fine.",
+  },
+  {
+    id: "n11-mock",
+    label: "Full timed mock interview — the dress rehearsal",
+    minutes: 45,
+    href: "/mock-interview",
+    note: "Don't skip this. Afterwards, read the rubric feedback on your two weakest answers.",
+  },
+  {
+    id: "n11-stories",
+    label: "Three anchor stories out loud, S.T.A.R.",
+    minutes: 25,
+    href: "/resume",
+    note: "Playwright migration, the 300+ case suite, and one cross-layer debugging investigation (UI vs API vs logs vs SQL).",
+  },
+  {
+    id: "n11-java",
+    label: "Five timed Java Lab questions, then read the solutions",
+    minutes: 25,
+    href: "/java-lab",
+    note: "15 minutes for the five, 10 minutes reading the model answers.",
+  },
+  {
+    id: "n11-scenarios",
+    label: "Two scenarios in writing, then compare with the model",
+    minutes: 25,
+    href: "/scenarios",
+    note: "Terminated-user-retains-access, plus one data-mismatch scenario. Drafts autosave — you can pause and come back.",
+  },
 ];
+
+function interviewDayItems(interviewAt: number): PlanItem[] {
+  const stopAt = interviewAt - 180 * 60_000;
+  const setupAt = interviewAt - 45 * 60_000;
+  const warmAt = interviewAt - 15 * 60_000;
+  return [
+    {
+      id: "n12-morning",
+      label: "Cheat Sheet — Overview tab only",
+      minutes: 20,
+      href: "/cheatsheet?tab=overview",
+      note: "The 10-second scan table and the big picture. Nothing else.",
+    },
+    {
+      id: "n12-lunch",
+      label: "Quick-facts drill once more + rehearse your reverse questions",
+      minutes: 15,
+      href: "/company",
+      note: "Pick your two questions below and say them out loud once each.",
+    },
+    {
+      id: "n12-stop",
+      label: `${fmtClockOnAnchor(stopAt, interviewAt)} — stop studying. Eat a real dinner`,
+      note: "Anything learned after this point does not stick; it only adds noise.",
+    },
+    {
+      id: "n12-tech",
+      label: `${fmtClockOnAnchor(setupAt, interviewAt)} — tech setup`,
+      note: "Quiet room, webcam/mic test, phone hotspot as backup, water, résumé + the numbers below open in tabs.",
+    },
+    {
+      id: "n12-warm",
+      label: `${fmtClockOnAnchor(warmAt, interviewAt)} — say the pitch out loud one last time`,
+      note: "Then read only the final mnemonic line on the cheat sheet.",
+    },
+    {
+      id: "n12-go",
+      label: `${fmtClockOnAnchor(interviewAt, interviewAt)} — go. First 90 seconds = the pitch`,
+      note: "You've prepared more thoroughly than most candidates prepare for anything.",
+    },
+  ];
+}
+
+function buildPlanDays(interviewAt: number, todayStart: number | null): PlanBlock[] {
+  const interviewStart = startOfDay(interviewAt);
+  const base: Array<Omit<PlanBlock, "when" | "date">> = [
+    {
+      id: "two-before",
+      offset: -2,
+      start: startOfDay(addDays(interviewStart, -2)),
+      subtitle: "45 minutes total — then stop and sleep on time",
+      tone: "night",
+      icon: Moon,
+      items: TWO_DAYS_BEFORE_ITEMS,
+    },
+    {
+      id: "day-before",
+      offset: -1,
+      start: startOfDay(addDays(interviewStart, -1)),
+      subtitle: "~3 hours around your job — morning, lunch and one protected evening block",
+      tone: "main",
+      icon: Sun,
+      items: DAY_BEFORE_ITEMS,
+    },
+    {
+      id: "interview-day",
+      offset: 0,
+      start: interviewStart,
+      subtitle: "Protect your energy. No new material today.",
+      tone: "final",
+      icon: Rocket,
+      items: interviewDayItems(interviewAt),
+    },
+  ];
+  return base.map((day) => ({
+    ...day,
+    when: dayName(day.offset, day.start, todayStart),
+    date: fmtWeekdayDate(day.start),
+  }));
+}
+
+function jobRules(interviewAt: number): string[] {
+  const dayBefore = addDays(interviewAt, -1);
+  return [
+    `The day before (${fmtWeekdayDate(dayBefore)}): work ends at 6 PM and the evening block is sacred. No “quick check” of work email after dinner.`,
+    `Interview day (${fmtWeekdayDate(interviewAt)}): if WFH or a half-day is possible, take it — a ${fmtClock(interviewAt)} interview after a full office day is draining. If not, take a real lunch break away from your desk and zero prep after ${fmtClock(interviewAt - 180 * 60_000)}.`,
+    "Commute and lunch = flashcards (phone). Evening = out-loud practice (the hard, high-value part). Never swap these.",
+    "Keep it confidential at your current company until you have an offer in hand.",
+  ];
+}
 
 const REVERSE_QUESTIONS = [
   "How does the SDET team plug into shift-left security — at what stage do you get threat models or security requirements?",
@@ -212,19 +321,20 @@ function useCountdown() {
   return now;
 }
 
-function fmtCountdown(ms: number): string {
-  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-  if (days > 0) return `${days} day${days === 1 ? "" : "s"} ${hours} hr`;
-  if (hours > 0) return `${hours} hr ${minutes} min`;
-  return `${minutes} min`;
-}
-
 export default function PlanPage() {
   const [done, setDone] = useState<Record<string, boolean>>({});
   const now = useCountdown();
+
+  // The interview date lives in server settings, so it is shared across devices.
+  const [interviewAt, setInterviewAt] = useState<number | null>(null);
+  const [hasSavedDate, setHasSavedDate] = useState(false);
+  const [dateStr, setDateStr] = useState("");
+  const [timeStr, setTimeStr] = useState("21:00");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  // Don't let a slow settings load clobber fields the user is already editing.
+  const editedRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -233,6 +343,44 @@ export default function PlanPage() {
     } catch {
       // corrupted or unavailable — start fresh
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ interview_datetime: string }>("/api/settings")
+      .then((r) => {
+        if (cancelled) return;
+        const raw = r.interview_datetime?.trim();
+        const parsed = raw ? new Date(raw).getTime() : NaN;
+        if (!Number.isNaN(parsed)) {
+          setInterviewAt(parsed);
+          setHasSavedDate(true);
+          if (!editedRef.current) {
+            setDateStr(toDateInput(parsed));
+            setTimeStr(toTimeInput(parsed));
+          }
+        } else {
+          setInterviewAt(DEFAULT_INTERVIEW_AT);
+          setHasSavedDate(false);
+          if (!editedRef.current) {
+            setDateStr(toDateInput(DEFAULT_INTERVIEW_AT));
+            setTimeStr(toTimeInput(DEFAULT_INTERVIEW_AT));
+          }
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setInterviewAt(DEFAULT_INTERVIEW_AT);
+        setHasSavedDate(false);
+        if (!editedRef.current) {
+          setDateStr(toDateInput(DEFAULT_INTERVIEW_AT));
+          setTimeStr(toTimeInput(DEFAULT_INTERVIEW_AT));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const toggle = (id: string) => {
@@ -248,13 +396,54 @@ export default function PlanPage() {
     });
   };
 
-  const allItems = useMemo(() => DAYS.flatMap((d) => d.items), []);
+  // The plan re-dates itself as the fields change; Save persists them server-side.
+  const effectiveAt = parseDateTimeInput(dateStr, timeStr) ?? interviewAt ?? DEFAULT_INTERVIEW_AT;
+  const unsaved =
+    interviewAt !== null &&
+    Math.floor(effectiveAt / 60_000) !== Math.floor(interviewAt / 60_000);
+
+  const todayStart = now === null ? null : startOfDay(now);
+  const planDays = useMemo(() => buildPlanDays(effectiveAt, todayStart), [effectiveAt, todayStart]);
+
+  const allItems = useMemo(() => planDays.flatMap((d) => d.items), [planDays]);
   const doneCount = allItems.filter((i) => done[i.id]).length;
   const pct = allItems.length ? Math.round((100 * doneCount) / allItems.length) : 0;
 
-  const activeDayId: PlanBlock["id"] | null =
-    now === null ? null : now < DAY_2_START ? "nov-10" : now < DAY_3_START ? "nov-11" : "nov-12";
-  const isInterviewTime = now !== null && now >= INTERVIEW_AT;
+  const nextDayId = useMemo(() => {
+    if (todayStart === null) return null;
+    return planDays.find((d) => d.start > todayStart)?.id ?? null;
+  }, [planDays, todayStart]);
+
+  const interviewEnd = effectiveAt + 60 * 60_000;
+  const phase = now === null ? "waiting" : now < effectiveAt ? "before" : now < interviewEnd ? "live" : "after";
+
+  async function saveInterviewAt() {
+    const value = parseDateTimeInput(dateStr, timeStr);
+    if (!dateStr) {
+      setSaveErr("Pick an interview date first.");
+      return;
+    }
+    if (value === null) {
+      setSaveErr("That date and time could not be read.");
+      return;
+    }
+    setSaving(true);
+    setSaveErr(null);
+    setSaveMsg(null);
+    try {
+      await api.put("/api/settings", {
+        interview_datetime: `${dateStr}T${/^\d{2}:\d{2}$/.test(timeStr) ? timeStr : "21:00"}:00`,
+      });
+      setInterviewAt(value);
+      setHasSavedDate(true);
+      setSaveMsg("Saved — the plan follows this date on every device.");
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (e) {
+      setSaveErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -264,25 +453,94 @@ export default function PlanPage() {
           Interview Plan — 2 Days
         </h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          Built around a day job: tonight ~45 minutes, tomorrow ~3 hours split into
-          morning / lunch / one protected evening block, and a light interview day.
-          Check items off as you go — your progress is saved on this device.
+          Anchored to your interview date: the two days before it, then a light interview day.
+          Change the date below and the whole plan re-dates itself.
         </p>
       </header>
+
+      {/* Interview date + time, shared through server settings */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label
+              htmlFor="interview-date"
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300"
+            >
+              <CalendarDays className="h-3.5 w-3.5" /> Interview date
+            </label>
+            <input
+              id="interview-date"
+              type="date"
+              value={dateStr}
+              onChange={(e) => {
+                editedRef.current = true;
+                setDateStr(e.target.value);
+              }}
+              className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="interview-time"
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300"
+            >
+              <Clock className="h-3.5 w-3.5" /> Interview time
+            </label>
+            <input
+              id="interview-time"
+              type="time"
+              value={timeStr}
+              onChange={(e) => {
+                editedRef.current = true;
+                setTimeStr(e.target.value);
+              }}
+              className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+            />
+          </div>
+          <button
+            onClick={saveInterviewAt}
+            disabled={saving || !dateStr}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save date"}
+          </button>
+          {saveMsg ? (
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{saveMsg}</span>
+          ) : null}
+          {unsaved && !saveErr ? (
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              Preview — not saved yet
+            </span>
+          ) : null}
+        </div>
+        {saveErr ? (
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-600 dark:text-rose-400">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Could not save the date: {saveErr}
+          </p>
+        ) : null}
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          {hasSavedDate
+            ? "Saved in your server settings, so the countdown and plan match on every device."
+            : "No interview date is saved yet — showing the default. Pick your date and press Save to keep it."}
+        </p>
+      </section>
 
       {/* Countdown + progress */}
       <section className="overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 p-5 text-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-100">
-              Interview — Thursday, Nov 12 · 9:00–10:00 PM
+              Interview — {fmtLongDate(effectiveAt)} · {fmtClock(effectiveAt)}–{fmtClock(interviewEnd)}
             </p>
             <p className="mt-1 text-3xl font-bold">
-              {isInterviewTime
+              {phase === "live"
                 ? "It's interview time — go."
-                : now === null
-                  ? "—"
-                  : `${fmtCountdown(INTERVIEW_AT - now)} to go`}
+                : phase === "after"
+                  ? "Interview window has passed."
+                  : now === null
+                    ? "—"
+                    : `${fmtCountdown(effectiveAt - now)} to go`}
             </p>
           </div>
           <div className="min-w-[200px] flex-1">
@@ -321,9 +579,10 @@ export default function PlanPage() {
 
       {/* The three days */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {DAYS.map((day) => {
+        {planDays.map((day) => {
           const Icon = day.icon;
-          const isToday = day.id === activeDayId;
+          const isToday = todayStart !== null && day.start === todayStart;
+          const isNext = !isToday && day.id === nextDayId;
           const dayDone = day.items.filter((i) => done[i.id]).length;
           return (
             <section
@@ -357,6 +616,10 @@ export default function PlanPage() {
                 {isToday ? (
                   <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">
                     TODAY
+                  </span>
+                ) : isNext ? (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                    NEXT
                   </span>
                 ) : dayDone === day.items.length ? (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-400">
@@ -439,7 +702,7 @@ export default function PlanPage() {
           Managing the day job alongside
         </h2>
         <ul className="mt-2 space-y-1.5">
-          {JOB_RULES.map((rule, i) => (
+          {jobRules(effectiveAt).map((rule, i) => (
             <li key={i} className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-indigo-400" />
               {rule}
@@ -553,8 +816,8 @@ export default function PlanPage() {
 
       <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
         <ListChecks className="mt-0.5 h-3 w-3 shrink-0" />
-        Checklist state is saved locally on this device (like your theme choice). Submitted scores
-        and quiz results live in the server database.
+        Checklist state is saved locally on this device. The interview date is saved to the server, so
+        the plan and countdown match on every device you sign in from.
       </p>
     </div>
   );

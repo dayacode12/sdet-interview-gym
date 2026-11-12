@@ -309,13 +309,28 @@ test("iam lab module study and quiz", async ({ page }) => {
   await expect(page.getByText(/authenticated but not authorized|missing\/invalid credentials/i)).toBeVisible({ timeout: 15000 });
 });
 
-test("interview plan shows the countdown and persists the checklist", async ({ page }) => {
+test("interview plan re-dates itself from the saved interview date", async ({ page }) => {
   await page.goto("/plan");
   await expect(page.getByRole("heading", { name: "Interview Plan — 2 Days" })).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText(/Nov 12 · 9:00–10:00 PM/i)).toBeVisible();
-  // The three day cards render with their checkable items.
-  await expect(page.getByText("The main prep day")).toBeVisible();
-  await expect(page.getByText("Interview day — light")).toBeVisible();
+  // Wait for the saved settings to load before editing, or the load could overwrite our input.
+  await expect(
+    page.getByText(/Saved in your server settings|No interview date is saved yet/)
+  ).toBeVisible({ timeout: 15000 });
+
+  // Set a known date and time through the page's own editor, then save it.
+  await page.getByLabel("Interview date").fill("2026-11-19");
+  await page.getByLabel("Interview time").fill("18:30");
+  await page.getByRole("button", { name: "Save date" }).click();
+  await expect(page.getByText(/Saved — the plan follows this date/)).toBeVisible({ timeout: 10000 });
+
+  // Header, day cards and the interview-day schedule all follow the saved values.
+  await expect(page.getByText(/Interview — Thursday, Nov 19 · 6:30 PM–7:30 PM/)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole("heading", { name: "Two days before" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The day before" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Interview day" })).toBeVisible();
+  await expect(page.getByText(/6:15 PM — say the pitch out loud one last time/)).toBeVisible();
+  await expect(page.getByText(/6:30 PM — go\. First 90 seconds/)).toBeVisible();
+
   // Checking an item marks it done and survives a reload (localStorage).
   await page.getByRole("button", { name: "Mark done: Read the Company Brief end to end" }).click();
   await expect(page.getByText(/1\/17 done/i)).toBeVisible();
