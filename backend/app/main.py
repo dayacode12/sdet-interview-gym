@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import JAVA_MODE, settings
 from app.database import Base, engine
@@ -103,10 +104,24 @@ for router in (
 
 @app.get("/api/health")
 def health():
+    """Environment + which database is actually backing this instance.
+
+    `database.dialect` answers "am I on Postgres or the ephemeral SQLite file?";
+    host is included without credentials. A failed connection is reported
+    honestly rather than pretending the app is healthy.
+    """
+    database = {"dialect": engine.dialect.name, "host": engine.url.host or "local-file"}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        database["reachable"] = True
+    except Exception:
+        database["reachable"] = False
     return {
         "status": "ok",
         "java_mode": JAVA_MODE,
         "llm_enabled": bool(settings.llm_api_key),
+        "database": database,
     }
 
 

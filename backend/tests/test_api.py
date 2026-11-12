@@ -10,6 +10,9 @@ def test_health(client):
     body = resp.json()
     assert body["status"] == "ok"
     assert body["java_mode"] in {"docker", "local", "disabled"}
+    # Tests run on a throwaway SQLite file; report the real backing store.
+    assert body["database"]["dialect"] == "sqlite"
+    assert body["database"]["reachable"] is True
 
 
 def test_dashboard(client):
