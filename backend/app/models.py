@@ -96,3 +96,20 @@ class ActivityEvent(Base):
     kind: Mapped[str] = mapped_column(String(32))  # study | practice | mock | review
     seconds: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Draft(Base):
+    """Work-in-progress editor content, keyed by the frontend's storage key.
+
+    The client mirrors every draft to localStorage (instant, offline) and to
+    this table (follows the user across browsers and devices). On Render's
+    free tier the SQLite file is ephemeral; setting DATABASE_URL to a real
+    PostgreSQL makes drafts durable.
+    """
+
+    __tablename__ = "drafts"
+    key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    text: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

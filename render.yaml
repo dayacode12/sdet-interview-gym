@@ -1,10 +1,14 @@
 # Render blueprint — deploys the SDET Interview Gym backend.
 #
 # Deploy: Render Dashboard -> New -> Blueprint -> pick this repository.
-# Render will create the web service AND the PostgreSQL database, wiring
-# DATABASE_URL automatically. During the blueprint prompt, set CORS_ORIGINS
-# to your GitHub Pages URL (e.g. https://dayacode12.github.io) plus
-# http://localhost:3000 for local development.
+# During the blueprint prompt, set CORS_ORIGINS to your GitHub Pages origin
+# (e.g. https://dayacode12.github.io) plus http://localhost:3000 for local dev.
+#
+# Database: this app expects a managed PostgreSQL via DATABASE_URL. Create one
+# (Aiven / Neon / Supabase) and paste its service URI into the Render dashboard
+# env var when prompted. The value is a secret — never commit it. Without it,
+# the backend falls back to a SQLite file inside the container, which is wiped
+# on every deploy/restart (drafts then only persist on each device).
 services:
   - type: web
     name: sdet-interview-gym-api
@@ -15,11 +19,10 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true # redeploy on every push to main
     envVars:
-      # Managed Postgres from the database below (progress persists).
+      # Managed Postgres connection string (Aiven/Neon/Supabase).
+      # sync: false => Render prompts for it; it is never stored in this repo.
       - key: DATABASE_URL
-        fromDatabase:
-          name: sdet-interview-gym-db
-          property: connectionString
+        sync: false
       # JDK 21 is baked into the image, so candidate Java code really compiles
       # and runs ("local" subprocess mode). Never faked.
       - key: JAVA_EXECUTION_MODE
@@ -30,9 +33,3 @@ services:
       # Optional LLM scoring; leave empty for the rule-based rubric.
       - key: LLM_API_KEY
         sync: false
-
-databases:
-  - name: sdet-interview-gym-db
-    databaseName: sdet_gym
-    user: gym
-    plan: free # note: free-tier Postgres on Render expires after 30 days

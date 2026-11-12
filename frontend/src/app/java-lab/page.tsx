@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, Lightbulb, Play, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import { CodeEditor } from "@/components/code-editor";
+import { CodeEditor, JAVA_TEMPLATE } from "@/components/code-editor";
 import { SaveProgress } from "@/components/save-progress";
+import { loadDraft } from "@/lib/drafts";
 import { cn, difficultyBadge } from "@/lib/utils";
 
 interface QuestionMeta {
@@ -99,7 +100,10 @@ export default function JavaLabPage() {
     try {
       const d = await api.get<QuestionDetail>(`/api/java/questions/${q.id}`);
       setDetail(d);
-      setCode(d.starter_code ?? "");
+      // Your saved program for this question wins; otherwise the starter
+      // syntax auto-populates so the editor is never an empty box.
+      const draft = loadDraft(`java:${q.id}`);
+      setCode(draft?.text ?? d.starter_code ?? (q.type === "code" ? JAVA_TEMPLATE : ""));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -253,12 +257,17 @@ export default function JavaLabPage() {
               {selected.type === "code" ? (
                 <>
                   <CodeEditor value={code} onChange={setCode} language="java" />
-                  <SaveProgress
-                    storageKey={`java:${selected.id}`}
-                    value={code}
-                    pristine={detail?.starter_code ?? ""}
-                    onRestore={setCode}
-                  />
+                  {detail && detail.id === selected.id ? (
+                    <SaveProgress
+                      storageKey={`java:${selected.id}`}
+                      value={code}
+                      pristine={
+                        detail.starter_code ??
+                        (selected.type === "code" ? JAVA_TEMPLATE : "")
+                      }
+                      onRestore={setCode}
+                    />
+                  ) : null}
                   <div className="flex items-center gap-3">
                     <button
                       onClick={runCode}

@@ -13,9 +13,24 @@ import { expect, test as baseTest } from "@playwright/test";
 const AUTH_KEY = "sdet-gym-auth";
 const AUTH_TOKEN = "c85e4b23455aeaee349c8e0a57347644f7c99ebb134d72a5284a864f9ee39166"; // keep in sync with src/lib/auth.ts
 
+// Drafts now sync through the backend, so one test's autosave can leak into
+// the next test's fresh browser context. Clear them before each test — but
+// only against a local backend; never wipe a hosted deployment.
+const API_URL = process.env.E2E_API_URL || "http://localhost:8000";
+const IS_LOCAL_API = /localhost|127\.0\.0\.1/.test(API_URL);
+
 const test = baseTest.extend<{ authed: void }>({
   authed: [
-    async ({ page }, use) => {
+    async ({ page, request }, use) => {
+      if (IS_LOCAL_API) {
+        const list = await request.get(`${API_URL}/api/drafts`).catch(() => null);
+        if (list?.ok()) {
+          const { drafts } = (await list.json()) as { drafts: { key: string }[] };
+          for (const draft of drafts) {
+            await request.delete(`${API_URL}/api/drafts/${encodeURIComponent(draft.key)}`);
+          }
+        }
+      }
       await page.addInitScript(
         (args: { key: string; token: string }) => {
           window.localStorage.setItem(args.key, args.token);
@@ -154,6 +169,48 @@ test("java lab runs a stored solution and passes tests (or honestly reports disa
   expect(solutionCode.length).toBeGreaterThan(10);
 });
 
+test("java lab auto-populates starter syntax, suggests completions, and keeps a draft per question", async ({
+  page,
+}) => {
+  await page.goto("/java-lab");
+  const runnable = page.locator("main aside button", { hasText: "runnable" });
+  await runnable.first().click();
+  const editor = page.locator(".monaco-editor").first();
+  await expect(editor).toBeVisible({ timeout: 20000 });
+  // Read Monaco's model, not the editor DOM: the suggestion widget is a child
+  // of `.monaco-editor`, so textContent includes "Insert (⏎)…" noise.
+  const value = () =>
+    page.evaluate(() => {
+      const w = window as unknown as {
+        monaco?: { editor: { getModels: () => { getValue: () => string }[] } };
+      };
+      return w.monaco?.editor.getModels()[0]?.getValue() ?? "";
+    });
+  // The starter skeleton is already there — the editor is never an empty box.
+  await expect.poll(value, { timeout: 20000 }).toContain("public class Main");
+  // IDE-style autocomplete: typing `sout` offers System.out.println.
+  await editor.locator(".view-lines").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("sout", { delay: 60 });
+  // Force the widget on purpose instead of racing the quick-suggest delay.
+  await page.keyboard.press("Control+Space");
+  await expect(page.locator(".suggest-widget")).toContainText("System.out.println", {
+    timeout: 15000,
+  });
+  await page.keyboard.press("Escape");
+  // Insert the marker without keystroke suggestions rewriting it.
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText("// my saved draft marker");
+  await expect.poll(value).toContain("// my saved draft marker");
+  await expect(page.getByText(/autosaved/i).first()).toBeVisible();
+  await runnable.nth(1).click();
+  // The second question has its own starter, not the first question's draft.
+  await expect.poll(value, { timeout: 10000 }).toContain("normalise then check palindrome");
+  await expect.poll(value).not.toContain("my saved draft marker");
+  await runnable.first().click();
+  await expect.poll(value, { timeout: 10000 }).toContain("// my saved draft marker");
+});
+
 test("sql playground runs a query and blocks writes", async ({ page }) => {
   await page.goto("/sql-playground");
   await expect(page.getByRole("heading", { name: "SQL Playground" })).toBeVisible();
@@ -186,9 +243,10 @@ test("sql challenge submit and reveal both explain the reference answer in engli
   // Submitting a wrong answer still ships the reference query's translation.
   await page.getByRole("button", { name: /submit answer/i }).click();
   await expect(page.getByText("The reference answer, in English")).toBeVisible({ timeout: 15000 });
-  // Reveal loads the reference query and shows its translation directly.
-  await page.getByRole("button", { name: /load reference query/i }).click();
+  // Reveal shows the reference query beside the editor, with its translation.
+  await page.getByRole("button", { name: /show reference query/i }).click();
   await expect(page.getByText("In plain English")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Reference query", { exact: true })).toBeVisible();
 });
 
 test("sql challenge grading gives honest feedback", async ({ page }) => {
@@ -268,7 +326,7 @@ test("interview plan shows the countdown and persists the checklist", async ({ p
   await expect(checkedRow).toHaveClass(/border-emerald-200/);
 });
 
-test("save progress keeps a draft across reloads", async ({ page }) => {
+test("drafts autosave and restore across reloads", async ({ page }) => {
   await page.goto("/scenarios");
   const first = page.locator("main aside button").first();
   await first.click();
@@ -276,13 +334,11 @@ test("save progress keeps a draft across reloads", async ({ page }) => {
   await textarea.fill(
     "Draft in progress: validate the HR termination event first, then trace IGA processing."
   );
-  await page.getByRole("button", { name: /save progress/i }).click();
-  await expect(page.getByRole("button", { name: /^Saved$/i })).toBeVisible();
-  // Reload: the answer box starts empty, so the stored draft is offered back.
+  // No Save button: typing autosaves, and the footer says so honestly.
+  await expect(page.getByText(/autosaved/i).first()).toBeVisible();
+  // Reload: reopening the same scenario restores the draft automatically.
   await page.reload();
   await page.locator("main aside button").first().click();
-  await expect(page.getByText(/you have a saved draft from/i)).toBeVisible();
-  await page.getByRole("button", { name: /restore draft/i }).click();
   await expect(textarea).toHaveValue(/Draft in progress: validate the HR termination event/);
 });
 

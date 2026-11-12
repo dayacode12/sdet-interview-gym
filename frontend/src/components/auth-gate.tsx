@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { GraduationCap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AUTH_KEY, AUTH_TOKEN, hasValidSession, verifyCredentials } from "@/lib/auth";
+import { syncDrafts } from "@/lib/drafts";
 
 /**
  * Locks the app behind a client-side sign-in. children always render — the
@@ -17,6 +18,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setState(hasValidSession() ? "open" : "locked");
   }, []);
+
+  // Signed in: pull drafts saved from other devices, and refresh whenever the
+  // tab regains focus/visibility so work done elsewhere shows up here.
+  useEffect(() => {
+    if (state !== "open") return;
+    void syncDrafts();
+    const refresh = () => void syncDrafts();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [state]);
 
   return (
     <>

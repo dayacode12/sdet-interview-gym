@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronDown, RotateCcw, Send, ShieldAlert } from "lucide
 import { api, type EvaluationResult } from "@/lib/api";
 import { RubricDisplay } from "@/components/rubric";
 import { SaveProgress } from "@/components/save-progress";
+import { loadDraft } from "@/lib/drafts";
 import { cn } from "@/lib/utils";
 
 interface ScenarioMeta {
@@ -142,7 +143,8 @@ export default function ScenariosPage() {
               onClick={() => {
                 setSelected(s);
                 setResult(null);
-                setAnswer("");
+                // Pick up this scenario's saved answer, if there is one.
+                setAnswer(loadDraft(`scenario:${s.id}`)?.text ?? "");
               }}
               className={cn(
                 "w-full rounded-lg border p-3 text-left transition",

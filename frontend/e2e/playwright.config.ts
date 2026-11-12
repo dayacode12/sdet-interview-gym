@@ -7,6 +7,9 @@ export default defineConfig({
   testMatch: "*.spec.ts",
   timeout: 60_000,
   retries: 0,
+  // Drafts are shared server state; run serially so one test's autosave can't
+  // race another test's assertions.
+  workers: 1,
   use: {
     baseURL: process.env.FRONTEND_URL || "http://localhost:3000",
     headless: true,

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Database, Languages, Lightbulb, Play, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import { CodeEditor } from "@/components/code-editor";
+import { CodeEditor, type CompletionSpec } from "@/components/code-editor";
 import { SaveProgress } from "@/components/save-progress";
+import { loadDraft } from "@/lib/drafts";
 import { cn, difficultyBadge } from "@/lib/utils";
 
 interface ChallengeMeta {
@@ -62,9 +63,14 @@ export default function SqlPlaygroundPage() {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"playground" | "challenges">("playground");
   const [explanation, setExplanation] = useState<SqlEnglish | null>(null);
+  const [referenceSql, setReferenceSql] = useState<string | null>(null);
   const [explainBusy, setExplainBusy] = useState(false);
 
   useEffect(() => {
+    // Your last playground query follows you back here — and to other devices.
+    const saved = loadDraft("sql:playground");
+    if (saved?.text) setSql(saved.text);
+
     api.get<{ challenges: ChallengeMeta[] }>("/api/sql/challenges").then((r) => {
       setChallenges(r.challenges);
       // Deep link support: /sql-playground?q=<challenge-id> opens that challenge directly.
@@ -111,9 +117,10 @@ export default function SqlPlaygroundPage() {
     setResult(null);
     setError(null);
     setExplanation(null);
-    // Reset the editor to the scratch query so the previous challenge's SQL
-    // can't be accidentally submitted against this one.
-    setSql(DEFAULT_SQL);
+    setReferenceSql(null);
+    // Restore this challenge's saved draft, else the scratch query — never the
+    // previous challenge's SQL.
+    setSql(loadDraft(`sql:${c.id}`)?.text ?? DEFAULT_SQL);
     try {
       setDetail(await api.get<ChallengeDetail>(`/api/sql/challenges/${c.id}`));
     } catch (e) {
@@ -143,8 +150,8 @@ export default function SqlPlaygroundPage() {
       const r = await api.post<{ expected_sql: string; expected_english: SqlEnglish | null }>(
         `/api/sql/challenges/${selected.id}/reveal`
       );
-      setSql(r.expected_sql);
-      // The reference query arrives with its English translation — show it.
+      // Show the reference beside the editor — never overwrite your draft.
+      setReferenceSql(r.expected_sql);
       setExplanation(r.expected_english ?? null);
     } catch (e) {
       setError((e as Error).message);
@@ -160,6 +167,28 @@ export default function SqlPlaygroundPage() {
     }
     return groups;
   }, [challenges]);
+
+  // Autocomplete for the live sandbox schema: tables, columns, table.column.
+  const schemaCompletions = useMemo<CompletionSpec[]>(() => {
+    if (!schema) return [];
+    const items: CompletionSpec[] = [];
+    const seenColumns = new Set<string>();
+    for (const [table, cols] of Object.entries(schema)) {
+      items.push({ label: table, kind: "Struct", detail: "table in the sandbox dataset" });
+      for (const [col, desc] of cols) {
+        items.push({
+          label: `${table}.${col}`,
+          kind: "Field",
+          detail: `${table} column — ${desc}`,
+        });
+        if (!seenColumns.has(col)) {
+          seenColumns.add(col);
+          items.push({ label: col, kind: "Field", detail: `${table} column — ${desc}` });
+        }
+      }
+    }
+    return items;
+  }, [schema]);
 
   return (
     <div className="space-y-6">
@@ -180,7 +209,16 @@ export default function SqlPlaygroundPage() {
             key={t}
             onClick={() => {
               setTab(t);
-              setExplanation(null); // the panel belongs to the editor of one tab
+              // The explanation/reference panels belong to one tab's editor.
+              setExplanation(null);
+              setReferenceSql(null);
+              setSubmitResult(null);
+              setResult(null);
+              if (t === "playground") {
+                // Coming back to the sandbox: restore its draft, not the
+                // last challenge's SQL.
+                setSql(loadDraft("sql:playground")?.text ?? DEFAULT_SQL);
+              }
             }}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition",
@@ -223,7 +261,13 @@ export default function SqlPlaygroundPage() {
 
       {tab === "playground" ? (
         <>
-          <CodeEditor value={sql} onChange={setSql} language="sql" height={220} />
+          <CodeEditor
+            value={sql}
+            onChange={setSql}
+            language="sql"
+            height={220}
+            extraCompletions={schemaCompletions}
+          />
           <SaveProgress
             storageKey="sql:playground"
             value={sql}
@@ -299,13 +343,21 @@ export default function SqlPlaygroundPage() {
                   ) : null}
                 </div>
 
-                <CodeEditor value={sql} onChange={setSql} language="sql" height={200} />
-                <SaveProgress
-                  storageKey={`sql:${selected.id}`}
+                <CodeEditor
                   value={sql}
-                  pristine={DEFAULT_SQL}
-                  onRestore={setSql}
+                  onChange={setSql}
+                  language="sql"
+                  height={200}
+                  extraCompletions={schemaCompletions}
                 />
+                {detail?.id === selected.id ? (
+                  <SaveProgress
+                    storageKey={`sql:${selected.id}`}
+                    value={sql}
+                    pristine={DEFAULT_SQL}
+                    onRestore={setSql}
+                  />
+                ) : null}
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={submitAnswer}
@@ -319,7 +371,7 @@ export default function SqlPlaygroundPage() {
                     disabled={busy}
                     className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   >
-                    Load reference query
+                    Show reference query
                   </button>
                   <button
                     onClick={explainSql}
@@ -329,6 +381,20 @@ export default function SqlPlaygroundPage() {
                     <Languages className="h-4 w-4" /> {explainBusy ? "Translating…" : "Explain in English"}
                   </button>
                 </div>
+
+                {referenceSql ? (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                      Reference query
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Shown beside your work — your draft in the editor above is untouched.
+                    </p>
+                    <pre className="mt-2 overflow-auto rounded bg-slate-50 dark:bg-slate-800 p-3 font-mono text-xs text-slate-800 dark:text-slate-200">
+                      {referenceSql}
+                    </pre>
+                  </div>
+                ) : null}
 
                 {explanation ? <EnglishPanel english={explanation} /> : null}
 

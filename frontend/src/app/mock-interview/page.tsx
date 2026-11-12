@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, Clock, Flag, Play, Square } f
 import { api, type EvaluationResult } from "@/lib/api";
 import { RubricDisplay } from "@/components/rubric";
 import { SaveProgress } from "@/components/save-progress";
+import { loadDraft } from "@/lib/drafts";
 import { cn } from "@/lib/utils";
 
 interface Section {
@@ -92,6 +93,15 @@ export default function MockInterviewPage() {
   const currentQuestion = questions[index];
   const currentSection = plan?.sections.find((s) => s.id === currentQuestion?.section_id);
 
+  // Restore the saved answer for whichever question is in view — including
+  // after a reload or a draft that arrived from another device.
+  useEffect(() => {
+    if (!currentQuestion) return;
+    setAnswer(loadDraft(`mock:${currentQuestion.id}`)?.text ?? "");
+    // Re-run only when the question changes, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion?.id]);
+
   const start = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -99,7 +109,7 @@ export default function MockInterviewPage() {
       const s = await api.post<{ session_id: number }>("/api/mock/start", {});
       setSessionId(s.session_id);
       setIndex(0);
-      setAnswer("");
+      setAnswer(questions[0] ? loadDraft(`mock:${questions[0].id}`)?.text ?? "" : "");
       setLastEval(null);
       setFinishResult(null);
       setRemaining(3600);
@@ -110,7 +120,7 @@ export default function MockInterviewPage() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [questions]);
 
   async function submitAnswer() {
     if (!sessionId || !currentQuestion) return;

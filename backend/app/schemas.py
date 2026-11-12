@@ -50,6 +50,10 @@ class ActivityRequest(BaseModel):
     seconds: int = Field(default=0, ge=0, le=24 * 3600)
 
 
+class DraftPutRequest(BaseModel):
+    text: str = Field(max_length=200_000)  # generous: whole Java programs fit
+
+
 class SettingsUpdateRequest(BaseModel):
     interview_datetime: str | None = None  # ISO string, editable in the UI
     target_role: str | None = None

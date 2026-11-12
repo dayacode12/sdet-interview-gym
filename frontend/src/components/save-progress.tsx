@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, FileClock, RotateCcw, Save, Trash2 } from "lucide-react";
-import { clearDraft, loadDraft, saveDraft, timeAgo } from "@/lib/drafts";
+import { useEffect, useRef, useState } from "react";
+import { Check, CloudOff, CloudUpload, RotateCcw } from "lucide-react";
+import {
+  DRAFT_PUSHED_EVENT,
+  clearDraft,
+  loadDraft,
+  onDraftsSynced,
+  saveDraft,
+  timeAgo,
+} from "@/lib/drafts";
 import { cn } from "@/lib/utils";
 
 interface SaveProgressProps {
@@ -10,104 +17,117 @@ interface SaveProgressProps {
   storageKey: string;
   /** Current editor/textarea content. */
   value: string;
-  /** The value the editor starts from (starter code / default SQL / "") —
-   *  used to detect "you have an older draft but haven't typed yet". */
+  /** The value the editor starts from (starter code / default SQL / ""). */
   pristine: string;
   /** Restore handler — usually the same setter as the editor. */
   onRestore: (text: string) => void;
 }
 
+type SyncState = "idle" | "saving" | "synced" | "offline";
+
 /**
- * Save-progress control for in-progress work. Shows a Save button, a
- * "Saved · 2 min ago" status, and — when a stored draft differs from the
- * untouched editor — a restore banner so drafts survive reloads and
- * question switching.
+ * Autosaving draft indicator. Parents restore the stored text when an item is
+ * opened (loadDraft) and own the editor state; this component saves every
+ * edit — localStorage instantly, the backend debounced — reports sync status
+ * honestly, and can reset the editor to its pristine starting point.
  */
 export function SaveProgress({ storageKey, value, pristine, onRestore }: SaveProgressProps) {
-  const [savedText, setSavedText] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [sync, setSync] = useState<SyncState>("idle");
+  const baselineRef = useRef(value);
+  const lastRef = useRef<string | null>(null);
 
-  // Load the stored draft whenever the target item changes.
+  // New target: remember the initial value so the pristine starter is never
+  // written over an existing draft before it gets restored.
   useEffect(() => {
-    const d = loadDraft(storageKey);
-    setSavedText(d?.text ?? null);
-    setSavedAt(d?.savedAt ?? null);
-    setDismissed(false);
+    const stored = loadDraft(storageKey);
+    baselineRef.current = value;
+    lastRef.current = stored?.text ?? null;
+    setSavedAt(stored?.savedAt ?? null);
+    setSync("idle");
+    // `value` is intentionally sampled once per key change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  const isSaved = savedText !== null && savedText === value;
-  const offerRestore =
-    !dismissed && savedText !== null && savedText !== value && value === pristine;
-
-  const save = () => {
+  // Autosave user edits only (never the initial render / pristine value).
+  useEffect(() => {
+    if (value === baselineRef.current || value === lastRef.current) return;
     const ts = saveDraft(storageKey, value);
-    setSavedText(value);
+    lastRef.current = value;
     setSavedAt(ts);
-    setDismissed(false);
+    setSync("saving");
+  }, [value, storageKey]);
+
+  // A draft may arrive from another device after this editor mounted.
+  useEffect(
+    () =>
+      onDraftsSynced(() => {
+        const stored = loadDraft(storageKey);
+        if (!stored) return;
+        if (value === baselineRef.current && stored.text !== value) {
+          onRestore(stored.text);
+        }
+        setSavedAt(stored.savedAt);
+      }),
+    [storageKey, value, onRestore]
+  );
+
+  // Honest sync status once the debounced push finishes.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ key: string; ok: boolean }>).detail;
+      if (detail?.key === storageKey) setSync(detail.ok ? "synced" : "offline");
+    };
+    window.addEventListener(DRAFT_PUSHED_EVENT, handler);
+    return () => window.removeEventListener(DRAFT_PUSHED_EVENT, handler);
+  }, [storageKey]);
+
+  const reset = () => {
+    clearDraft(storageKey);
+    baselineRef.current = pristine;
+    lastRef.current = pristine;
+    setSavedAt(null);
+    setSync("idle");
+    onRestore(pristine);
   };
 
+  let Icon = Check;
+  let tone = "text-slate-400 dark:text-slate-500";
+  let label = "Drafts save automatically as you type — reload or switch questions and your work is still here.";
+  if (savedAt !== null) {
+    if (sync === "offline") {
+      Icon = CloudOff;
+      tone = "text-amber-600 dark:text-amber-400";
+      label = `Saved on this device · ${timeAgo(savedAt)} — will sync when the server is reachable.`;
+    } else if (sync === "saving") {
+      Icon = CloudUpload;
+      tone = "text-slate-500 dark:text-slate-400";
+      label = "Autosaving…";
+    } else if (sync === "synced") {
+      Icon = Check;
+      tone = "text-emerald-600 dark:text-emerald-400";
+      label = `Autosaved and synced — opens on your other devices · ${timeAgo(savedAt)}.`;
+    } else {
+      Icon = Check;
+      tone = "text-slate-500 dark:text-slate-400";
+      label = `Autosaved · ${timeAgo(savedAt)}.`;
+    }
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {offerRestore ? (
-        <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-          <FileClock className="h-3.5 w-3.5 shrink-0" />
-          <span className="min-w-0 flex-1">
-            You have a saved draft from {savedAt ? timeAgo(savedAt) : "earlier"}.
-          </span>
-          <button
-            onClick={() => {
-              onRestore(savedText ?? "");
-              setDismissed(true);
-            }}
-            className="flex items-center gap-1 rounded-md bg-amber-600 px-2 py-1 font-medium text-white transition hover:bg-amber-700"
-          >
-            <RotateCcw className="h-3 w-3" /> Restore draft
-          </button>
-          <button
-            onClick={() => {
-              clearDraft(storageKey);
-              setSavedText(null);
-              setSavedAt(null);
-              setDismissed(true);
-            }}
-            className="flex items-center gap-1 rounded-md border border-amber-300 px-2 py-1 font-medium transition hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
-            aria-label="Discard saved draft"
-          >
-            <Trash2 className="h-3 w-3" /> Discard
-          </button>
-        </div>
-      ) : null}
-
-      <button
-        onClick={save}
-        className={cn(
-          "flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition",
-          isSaved
-            ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900"
-            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-        )}
-      >
-        {isSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-        {isSaved ? "Saved" : "Save progress"}
-      </button>
-
-      <span
-        className={cn(
-          "text-xs",
-          isSaved
-            ? "text-emerald-600 dark:text-emerald-400"
-            : savedText !== null
-              ? "text-amber-600 dark:text-amber-400"
-              : "text-slate-400 dark:text-slate-500"
-        )}
-      >
-        {isSaved
-          ? `draft stored${savedAt ? ` · ${timeAgo(savedAt)}` : ""}`
-          : savedText !== null
-            ? "unsaved changes — your last save is kept until you save again"
-            : "stored on this device, survives reloads"}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+      <span className={cn("flex min-w-0 items-center gap-1.5", tone)}>
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0">{label}</span>
       </span>
+      <button
+        type="button"
+        onClick={reset}
+        className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+      >
+        <RotateCcw className="h-3 w-3" />
+        {pristine === "" ? "Clear draft" : "Reset to starter"}
+      </button>
     </div>
   );
 }

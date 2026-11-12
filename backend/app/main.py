@@ -12,6 +12,7 @@ from app.routers import (
     analytics,
     automation,
     company,
+    drafts,
     flashcards,
     iam,
     java,
@@ -95,6 +96,7 @@ for router in (
     company.router,
     mindmap.router,
     settings_router.router,
+    drafts.router,
 ):
     app.include_router(router)
 
