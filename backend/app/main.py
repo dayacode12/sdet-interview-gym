@@ -21,6 +21,7 @@ from app.routers import (
     mock,
     resume,
     roadmap,
+    round1,
     scenarios,
     settings as settings_router,
     sql,
@@ -38,6 +39,7 @@ def _compute_inventory() -> dict:
         java_questions,
         mock_interview,
         resume_deep_dive,
+        round1,
         scenarios,
         sql_challenges,
     )
@@ -51,6 +53,7 @@ def _compute_inventory() -> dict:
         "resume_questions": len(resume_deep_dive.RESUME_QUESTIONS),
         "mock_sections": len(mock_interview.MOCK_SECTIONS),
         "automation_exercises": len(automation_lab.EXERCISES),
+        "round1_questions": round1.get_round1()["question_count"],
     }
 
 
@@ -98,6 +101,7 @@ for router in (
     mindmap.router,
     settings_router.router,
     drafts.router,
+    round1.router,
 ):
     app.include_router(router)
 

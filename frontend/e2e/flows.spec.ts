@@ -77,9 +77,9 @@ baseTest("login gate opens with correct credentials and remembers the session", 
   await expect(page.getByLabel("Username")).toBeVisible();
 });
 
-test("all 16 pages render without errors", async ({ page }) => {
+test("all 17 pages render without errors", async ({ page }) => {
   const pages = [
-    "/", "/mind-map", "/company", "/plan", "/roadmap", "/java-lab", "/automation-lab", "/api-lab", "/sql-playground",
+    "/", "/mind-map", "/company", "/round-1", "/plan", "/roadmap", "/java-lab", "/automation-lab", "/api-lab", "/sql-playground",
     "/iam-lab", "/scenarios", "/mock-interview", "/resume", "/flashcards",
     "/analytics", "/cheatsheet",
   ];
@@ -136,6 +136,34 @@ test("company brief renders Schwab facts, values and a model answer", async ({ p
   await expect(page.getByText("$10.10 trillion")).toBeVisible();
   await page.getByRole("button", { name: /why do you want to work at schwab\?/i }).click();
   await expect(page.getByText(/Model answer/i).first()).toBeVisible();
+});
+
+test("round 1 playbook labels evidence and persists a practice answer", async ({ page }) => {
+  await page.goto("/round-1");
+  await expect(page.getByRole("heading", { name: "Round 1 Playbook" })).toBeVisible({ timeout: 15000 });
+
+  // Official Schwab evidence is present and linked.
+  await expect(page.getByRole("heading", { name: "What Schwab actually publishes" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /How We Hire/i }).first()).toBeVisible();
+
+  // The three sections from the brief.
+  await expect(page.getByRole("heading", { name: "Java / Automation Coding" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "API and Database Testing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "IAM & Cybersecurity Concepts" })).toBeVisible();
+
+  // Expand the reverse-string question, write an answer, reveal the model answer.
+  await page.getByRole("button", { name: /Reverse a string without using StringBuilder\.reverse/i }).click();
+  const box = page.getByLabel(/Your answer/i);
+  await box.fill("Two pointers; O(n) time; handle null and surrogate pairs.");
+  await expect(page.getByText(/Autosaved|Autosaving|synced/i).first()).toBeVisible();
+  await page.getByRole("button", { name: "Reveal model answer" }).click();
+  await expect(page.getByText(/Use two pointers and swap in place/i)).toBeVisible();
+  await expect(page.getByText(/O\(n\) time and O\(n\) space/i)).toBeVisible();
+
+  // The draft survives a reload (localStorage; backend sync is covered elsewhere).
+  await page.reload();
+  await page.getByRole("button", { name: /Reverse a string without using StringBuilder\.reverse/i }).click();
+  await expect(page.getByLabel(/Your answer/i)).toHaveValue(/Two pointers; O\(n\) time/);
 });
 
 test("dashboard shows the honesty statement and Java mode", async ({ page }) => {

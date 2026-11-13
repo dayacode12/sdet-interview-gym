@@ -23,6 +23,7 @@ import {
   PanelLeftOpen,
   ScrollText,
   ShieldCheck,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/mind-map", label: "Mind Map", icon: Network },
   { href: "/company", label: "Company Brief", icon: Building2 },
+  { href: "/round-1", label: "Round 1 Playbook", icon: Target },
   { href: "/plan", label: "Interview Plan", icon: CalendarClock },
   { href: "/roadmap", label: "Roadmap", icon: CalendarCheck },
   { href: "/java-lab", label: "Java Lab", icon: Braces },
