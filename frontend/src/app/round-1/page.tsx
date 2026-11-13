@@ -66,6 +66,9 @@ interface FlowSegment {
   do: string;
   evidence: Evidence;
   source_ids: string[];
+  must_cover: string[];
+  example: string;
+  example_code: string;
 }
 
 interface Playbook {
@@ -202,6 +205,7 @@ export default function Round1Page() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [openSegments, setOpenSegments] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api
@@ -232,6 +236,21 @@ export default function Round1Page() {
 
   function jumpTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function toggleSegment(minutes: string) {
+    setOpenSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(minutes)) next.delete(minutes);
+      else next.add(minutes);
+      return next;
+    });
+  }
+
+  function setAllSegments(open: boolean) {
+    setOpenSegments(
+      open ? new Set((data?.flow.segments ?? []).map((segment) => segment.minutes)) : new Set()
+    );
   }
 
   if (error) {
@@ -582,39 +601,139 @@ export default function Round1Page() {
 
       {/* 60-minute flow */}
       <section id="flow" className="scroll-mt-6 space-y-3">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white">
-            <Clock className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">{data.flow.title}</h2>
-            <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-              {data.flow.note}
-            </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white">
+              <Clock className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold">{data.flow.title}</h2>
+              <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                {data.flow.note}
+              </p>
+              <p className="mt-1 max-w-3xl text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
+                Every segment below has a worked example you can rehearse out loud.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setAllSegments(openSegments.size < data.flow.segments.length)
+            }
+            className="shrink-0 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+          >
+            {openSegments.size < data.flow.segments.length
+              ? "Show all examples"
+              : "Hide all examples"}
+          </button>
         </div>
         <ol className="space-y-2">
-          {data.flow.segments.map((segment) => (
-            <li
-              key={segment.minutes}
-              className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900"
-            >
-              <span className="w-14 shrink-0 rounded-md bg-slate-100 px-1.5 py-1 text-center text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {segment.minutes}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                    {segment.title}
-                  </h3>
-                  <EvidenceBadge kind={segment.evidence} />
+          {data.flow.segments.map((segment) => {
+            const open = openSegments.has(segment.minutes);
+            // Tolerate an older API during a deploy skew: the static UI can
+            // ship before the backend does.
+            const mustCover = segment.must_cover ?? [];
+            const example = segment.example ?? "";
+            return (
+              <li
+                key={segment.minutes}
+                className={cn(
+                  "overflow-hidden rounded-xl border bg-white dark:bg-slate-900",
+                  open
+                    ? "border-indigo-300 dark:border-indigo-700"
+                    : "border-slate-200 dark:border-slate-700"
+                )}
+              >
+                <div className="flex items-start gap-3 p-3.5">
+                  <span className="w-14 shrink-0 rounded-md bg-slate-100 px-1.5 py-1 text-center text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {segment.minutes}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                        {segment.title}
+                      </h3>
+                      <EvidenceBadge kind={segment.evidence} />
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      {segment.do}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {example ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => toggleSegment(segment.minutes)}
+                            aria-expanded={open}
+                            className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-slate-700 dark:bg-indigo-600 dark:hover:bg-indigo-500"
+                          >
+                            <BookOpen className="h-3 w-3" />
+                            {open
+                              ? "Hide example answer"
+                              : `Show example answer for ${segment.title}`}
+                          </button>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                            Say it out loud once, then again from memory.
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  {segment.do}
-                </p>
-              </div>
-            </li>
-          ))}
+
+                {open ? (
+                  <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        What they are scoring
+                      </p>
+                      <ul className="mt-1 space-y-1">
+                        {mustCover.map((point) => (
+                          <li
+                            key={point}
+                            className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300"
+                          >
+                            <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-800 dark:bg-emerald-950/40">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                        Example answer — say it like this
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                        {example}
+                      </p>
+                      {segment.example_code ? (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Code
+                            </p>
+                            <CopyButton text={segment.example_code} />
+                          </div>
+                          <pre className="mt-1 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] leading-relaxed text-slate-100">
+                            {segment.example_code}
+                          </pre>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {segment.source_ids.map((id) => {
+                        const source = byId.get(id);
+                        return source ? <SourceChip key={id} source={source} /> : null;
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </section>
 

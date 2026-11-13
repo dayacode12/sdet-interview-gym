@@ -164,6 +164,17 @@ test("round 1 playbook labels evidence and persists a practice answer", async ({
   await page.reload();
   await page.getByRole("button", { name: /Reverse a string without using StringBuilder\.reverse/i }).click();
   await expect(page.getByLabel(/Your answer/i)).toHaveValue(/Two pointers; O\(n\) time/);
+
+  // Every flow segment carries a worked example answer.
+  await page.getByRole("button", { name: /Show example answer for Coding challenge/i }).click();
+  await expect(page.getByText(/Let me restate it first/i)).toBeVisible();
+  await expect(page.getByText(/That last one matters|surrogate pair/i).first()).toBeVisible();
+  await page.getByRole("button", { name: /Show example answer for Wrap-up and your questions/i }).click();
+  await expect(page.getByText(/what would success look like for this role/i)).toBeVisible();
+  await page.getByRole("button", { name: "Show all examples" }).click();
+  await expect(page.getByText(/I'd treat it as a live access incident/i)).toBeVisible();
+  await page.getByRole("button", { name: "Hide all examples" }).click();
+  await expect(page.getByText(/I'd treat it as a live access incident/i)).toBeHidden();
 });
 
 test("dashboard shows the honesty statement and Java mode", async ({ page }) => {

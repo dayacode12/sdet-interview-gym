@@ -1347,6 +1347,28 @@ FLOW = {
             "do": "Confirm you can hear each other, thank them, and give the 90-second pitch. Ask one logistics question only if it matters.",
             "evidence": "official",
             "source_ids": ["how-we-hire", "star"],
+            "must_cover": [
+                "Name, current role and years of experience in one breath — no life story.",
+                "The three pillars: Java UI/API automation, SQL and data validation, IAM/security testing.",
+                "One sentence on why this role, tied to the job description.",
+                "One logistics question at most, then hand the floor back.",
+            ],
+            "example": (
+                "\"Hi, thanks for making the time — can you hear me clearly? Good. "
+                "I'm Daya Sagar, a QA automation engineer with about two years of "
+                "experience across UI, API and identity testing. Most of that has "
+                "been building and owning automated suites in Java — Selenium and "
+                "Playwright for UI, REST Assured for API, SQL for the data checks "
+                "underneath. The last year has been heavily identity-focused: "
+                "joiner-mover-leaver workflows, access certification and "
+                "termination testing in Saviynt, with CyberArk on the privileged "
+                "side. I'm interested in this role because it sits exactly where "
+                "I've been working — quality engineering on a security surface — "
+                "and I want to go deeper on the cyber side. Before we start, is "
+                "there anything about the format I should know — will we be coding "
+                "in a shared editor, or should I talk through code as I go?\""
+            ),
+            "example_code": "",
         },
         {
             "minutes": "5–15",
@@ -1354,6 +1376,31 @@ FLOW = {
             "do": "Walk the Playwright migration, the 300+ case suite and one IAM investigation. For every claim, have the method and the number ready.",
             "evidence": "reported",
             "source_ids": ["brief"],
+            "must_cover": [
+                "One project, not the whole resume: situation → what you owned → method → measured result.",
+                "Numbers with the measurement method attached (same suite, same environment, median of runs).",
+                "A limitation you volunteer — it buys credibility for everything else.",
+                "Answer the 'why' behind each decision, not just the tool names.",
+            ],
+            "example": (
+                "\"The project I'd point to first is our regression suite. When I "
+                "took it over it was Selenium and TestNG, around 300 cases, and "
+                "flakiness was the main pain — most failures were wait-related, not "
+                "product defects. I owned the migration to Playwright. I started "
+                "with one vertical slice — login through account summary — so we "
+                "could prove it in CI before touching the rest. I replaced sleeps "
+                "and implicit waits with web-first assertions, moved page objects "
+                "onto fixtures, and kept the same scenarios so coverage stayed "
+                "comparable. Then I measured: same suite, same environment, ten "
+                "consecutive runs, comparing the median — regression runtime came "
+                "down roughly a third and wait-related flakes dropped sharply. "
+                "What I'd flag is what we didn't get for free: Selenium's browser "
+                "breadth was wider, so we kept a small Selenium job for the "
+                "browsers Playwright didn't cover. On the IAM side, the "
+                "investigation I'm proudest of started with a terminated user who "
+                "could still log into an app.\""
+            ),
+            "example_code": "",
         },
         {
             "minutes": "15–30",
@@ -1361,6 +1408,45 @@ FLOW = {
             "do": "Clarify input/output, state edge cases, write compilable Java, then test it aloud. Explain complexity before they ask.",
             "evidence": "reported",
             "source_ids": ["brief", "oracle-map"],
+            "must_cover": [
+                "Restate the problem and ask one clarifying question before coding.",
+                "Name the edge cases before the first line of code.",
+                "Compilable code with sensible names — narrate each step.",
+                "Trace one example out loud, then state time and space complexity unprompted.",
+                "Finish with the test cases you would write.",
+            ],
+            "example": (
+                "\"Let me restate it first: given a String, return a new String with "
+                "the characters reversed, and I can't call StringBuilder.reverse(). "
+                "I'll treat null as valid input and return it unchanged, and I'll "
+                "return anything shorter than two characters as-is. Two options: a "
+                "two-pointer swap on a char array, which is O(n) time and O(n) space "
+                "because toCharArray copies, or building with a StringBuilder, also "
+                "O(n). I'll write the two-pointer version because it shows the loop "
+                "reasoning. Left at 0, right at length minus one, swap, move inward, "
+                "stop when they cross. Let me trace 'abc': swap a and c, then left "
+                "and right meet on b, so the result is 'cba'. For tests: null, empty, "
+                "one character, a palindrome like 'abba', and an emoji made of a "
+                "surrogate pair — that last one matters, because swapping char units "
+                "splits the pair, so for true Unicode safety I'd iterate code points "
+                "instead.\""
+            ),
+            "example_code": (
+                "public static String reverse(String input) {\n"
+                "    if (input == null || input.length() < 2) return input;\n"
+                "    char[] chars = input.toCharArray();\n"
+                "    int left = 0, right = chars.length - 1;\n"
+                "    while (left < right) {\n"
+                "        char tmp = chars[left];\n"
+                "        chars[left++] = chars[right];\n"
+                "        chars[right--] = tmp;\n"
+                "    }\n"
+                "    return new String(chars);\n"
+                "}\n"
+                "\n"
+                "// then trace it aloud: reverse(\"abc\") -> \"cba\"\n"
+                "// and list the tests: null, \"\", \"a\", \"abba\", \"\\uD83D\\uDE00!\""
+            ),
         },
         {
             "minutes": "30–40",
@@ -1368,6 +1454,53 @@ FLOW = {
             "do": "For the API: status, schema, negative cases, DB side effect. For SQL: say the join logic before typing, then the security meaning of the rows.",
             "evidence": "reported",
             "source_ids": ["brief", "rest-assured", "postgres-select"],
+            "must_cover": [
+                "Positive assertions beyond the status code: headers, schema, field values.",
+                "Negative cases named explicitly — 401, 403, 409, 400.",
+                "Database verification by natural key, then cleanup.",
+                "For SQL: state the join logic before typing, then explain what each row means for access control.",
+            ],
+            "example": (
+                "\"On the API side I'd build the request with JSON content type, "
+                "POST to /api/users, and assert more than the status: 201, the "
+                "Location header, the echoed fields, and that the id exists. Then "
+                "the negative matrix — duplicate username returns 409, a missing "
+                "required field 400, no token 401, a valid token with the wrong "
+                "role 403. After that I'd prove the side effect with a query on the "
+                "natural key, and clean up in teardown so the next run starts "
+                "clean. For the SQL question I'd say the plan before typing: join "
+                "users to user_roles on user_id, join roles on role_id, filter "
+                "users.status = 'INACTIVE' and user_roles.status = 'ACTIVE'. INNER "
+                "JOIN drops users with no roles, which is what I want here. And "
+                "every row that comes back is an access-control violation — an "
+                "inactive identity still holding live entitlements — so I'd report "
+                "it as a control finding, not just a query result.\""
+            ),
+            "example_code": (
+                "// 1. the API test\n"
+                "given()\n"
+                "    .contentType(ContentType.JSON)\n"
+                "    .body(Map.of(\"username\", \"qa_user\", \"role\", \"READ_ONLY\"))\n"
+                ".when()\n"
+                "    .post(\"/api/users\")\n"
+                ".then()\n"
+                "    .statusCode(201)\n"
+                "    .header(\"Location\", containsString(\"/api/users/\"))\n"
+                "    .body(\"role\", equalTo(\"READ_ONLY\"))\n"
+                "    .body(\"id\", notNullValue());\n"
+                "\n"
+                "// 2. the database side effect\n"
+                "SELECT user_id, username, status, created_at\n"
+                "FROM users\n"
+                "WHERE username = 'qa_user';\n"
+                "\n"
+                "// 3. the access-control query\n"
+                "SELECT u.user_id, u.username, r.role_name\n"
+                "FROM users u\n"
+                "JOIN user_roles ur ON ur.user_id = u.user_id\n"
+                "JOIN roles r       ON r.role_id  = ur.role_id\n"
+                "WHERE u.status = 'INACTIVE' AND ur.status = 'ACTIVE';"
+            ),
         },
         {
             "minutes": "40–55",
@@ -1375,6 +1508,30 @@ FLOW = {
             "do": "Use the evidence chain: HR → IGA → connector → target → session. Contain first, then diagnose, then prevent.",
             "evidence": "reported",
             "source_ids": ["brief", "technology", "owasp-authz"],
+            "must_cover": [
+                "Contain, preserve evidence, then diagnose — in that order.",
+                "Walk the chain: HR event → IGA → connector → target app → live session.",
+                "Name the bypasses: local accounts, refresh tokens, remembered devices.",
+                "Turn the fix into a preventive control and an automated regression test.",
+            ],
+            "example": (
+                "\"I'd treat it as a live access incident, so I contain before I "
+                "diagnose. First confirm the account, disable it, revoke active "
+                "sessions and refresh tokens, and preserve the audit evidence — if "
+                "they accessed anything after termination, that's a reportable "
+                "event. Then I walk the chain backwards: did the HR termination "
+                "event arrive, did IGA mark the identity inactive, did the connector "
+                "run against that app, does the app hold a local account outside "
+                "SSO, and is there a remembered device or long-lived session "
+                "keeping them in? If it's a SaaS app with its own local admin, the "
+                "connector may never have owned that account. Once the root cause is "
+                "fixed I'd add two things: a regression test that fires a "
+                "termination event and asserts the login fails at the API — not "
+                "just in the UI — and an alert if a terminated identity "
+                "authenticates at all. That's how one ticket becomes a control "
+                "instead of a one-off cleanup.\""
+            ),
+            "example_code": "",
         },
         {
             "minutes": "55–60",
@@ -1382,6 +1539,24 @@ FLOW = {
             "do": "Ask two reverse questions tied to the role: how the SDET team plugs into shift-left security, and what success looks like in 90 days.",
             "evidence": "official",
             "source_ids": ["star", "technology"],
+            "must_cover": [
+                "Two questions at most, both about the work — not perks or timelines.",
+                "Listen to the answer and react to it; don't read from a list.",
+                "Close with a clear next step and a thank-you.",
+            ],
+            "example": (
+                "\"I have two. First: how does the SDET team plug into shift-left "
+                "security here — are you embedded with the security engineers, or "
+                "testing their output downstream? I ask because the best quality "
+                "work I've done came from being in the design conversations. "
+                "Second: what would success look like for this role in the first "
+                "90 days — coverage of a specific IAM surface, shortening the "
+                "regression cycle, or something else? … Thank you, I enjoyed the "
+                "API and IAM parts especially. I'll follow up with the Talent "
+                "Advisor on next steps — is there anything you'd like me to send in "
+                "the meantime?\""
+            ),
+            "example_code": "",
         },
     ],
 }

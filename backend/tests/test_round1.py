@@ -43,6 +43,25 @@ def test_round1_questions_are_complete_and_unique(client):
     assert len(ids) == len(set(ids)), "question ids must be unique"
 
 
+def test_round1_flow_segments_have_rehearsal_answers(client):
+    body = client.get("/api/round1").json()
+    segments = body["flow"]["segments"]
+
+    assert len(segments) == 6
+    for segment in segments:
+        assert segment["must_cover"], segment["minutes"]
+        assert len(segment["must_cover"]) >= 3, segment["minutes"]
+        # A usable rehearsal answer, not a one-liner.
+        assert len(segment["example"]) >= 200, segment["minutes"]
+        assert segment["example"].strip().startswith('"'), segment["minutes"]
+
+    # The coding and API/SQL segments must also carry runnable snippets.
+    with_code = [s for s in segments if s["example_code"].strip()]
+    assert len(with_code) >= 2
+    assert any("reverse" in s["example_code"] for s in with_code)
+    assert any("SELECT" in s["example_code"] for s in with_code)
+
+
 def test_round1_sources_are_labelled_and_linked(client):
     body = client.get("/api/round1").json()
     by_id = {s["id"]: s for s in body["sources"]}

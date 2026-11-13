@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -36,16 +37,30 @@ def list_drafts(db: Session = Depends(get_db)):
 
 @router.put("/{key:path}")
 def put_draft(key: str, req: DraftPutRequest, db: Session = Depends(get_db)):
-    row = db.get(Draft, key)
-    if row is None:
-        row = Draft(key=key, text=req.text)
-        db.add(row)
-    else:
-        row.text = req.text
-        row.updated_at = dt.datetime.now(dt.timezone.utc)
-    db.commit()
-    db.refresh(row)
-    return {"key": row.key, "text": row.text, "updated_ms": _as_ms(row.updated_at)}
+    # Two tabs (or a debounced push racing a focus sync) can create the same
+    # key at once: both see "no row", both INSERT, one loses the unique
+    # constraint. Retry as an update instead of returning a 500 the client
+    # cannot retry on its own.
+    for attempt in range(3):
+        row = db.get(Draft, key)
+        if row is None:
+            row = Draft(key=key, text=req.text)
+            db.add(row)
+        else:
+            row.text = req.text
+            row.updated_at = dt.datetime.now(dt.timezone.utc)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            if attempt == 2:
+                raise HTTPException(
+                    status_code=409, detail="draft is being written concurrently; retry"
+                )
+            continue
+        db.refresh(row)
+        return {"key": row.key, "text": row.text, "updated_ms": _as_ms(row.updated_at)}
+    raise HTTPException(status_code=409, detail="draft is being written concurrently; retry")
 
 
 @router.delete("/{key:path}")
