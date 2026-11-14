@@ -14,6 +14,7 @@ import {
   Database,
   ExternalLink,
   FileText,
+  Fingerprint,
   Lightbulb,
   Link2,
   Quote,
@@ -25,6 +26,7 @@ import {
 import { api } from "@/lib/api";
 import { SaveProgress } from "@/components/save-progress";
 import { loadDraft } from "@/lib/drafts";
+import { HIDE_ADMIRAL } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
 type Evidence = "official" | "jd" | "reported" | "standard";
@@ -33,7 +35,7 @@ interface Source {
   id: string;
   name: string;
   publisher: string;
-  type: "official" | "brief" | "standard";
+  type: "official" | "brief" | "standard" | "internal";
   url: string;
   supports: string;
   accessed: string;
@@ -50,6 +52,7 @@ interface Question {
   follow_ups: string[];
   traps: string[];
   source_ids: string[];
+  admiral_evidence?: string;
 }
 
 interface Section {
@@ -516,6 +519,22 @@ export default function Round1Page() {
                             </p>
                           </div>
 
+                          {q.admiral_evidence && !HIDE_ADMIRAL ? (
+                            <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5 dark:border-indigo-800 dark:bg-indigo-950/50">
+                              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                                <Fingerprint className="h-3 w-3" />
+                                From your current role
+                              </p>
+                              <p className="mt-1 text-xs leading-relaxed text-indigo-950 dark:text-indigo-200">
+                                {q.admiral_evidence}
+                              </p>
+                              <p className="mt-1 text-[10px] text-indigo-700/70 dark:text-indigo-300/70">
+                                Your own IGA work at Admiral Group, from the brief you provided —
+                                internal evidence, not Schwab material.
+                              </p>
+                            </div>
+                          ) : null}
+
                           {q.code ? (
                             <div>
                               <div className="flex items-center justify-between gap-2">
@@ -843,7 +862,7 @@ export default function Round1Page() {
           </div>
         </div>
 
-        {(["official", "brief", "standard"] as const).map((type) => {
+        {(["official", "brief", "internal", "standard"] as const).map((type) => {
           const rows = data.sources.filter((s) => s.type === type);
           if (!rows.length) return null;
           const heading =
@@ -851,7 +870,9 @@ export default function Round1Page() {
               ? "Official Charles Schwab"
               : type === "brief"
                 ? "Your research brief"
-                : "Standards and vendor documentation";
+                : type === "internal"
+                  ? "Your current role (internal)"
+                  : "Standards and vendor documentation";
           return (
             <div key={type} className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -888,7 +909,7 @@ export default function Round1Page() {
                         </a>
                       ) : (
                         <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-                          Local file
+                          {source.type === "internal" ? "Internal — not linked" : "Local file"}
                         </span>
                       )}
                     </div>

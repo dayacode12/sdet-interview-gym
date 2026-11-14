@@ -12,11 +12,13 @@ import {
   Database,
   Dumbbell,
   FileText,
+  Fingerprint,
   FlaskConical,
   GraduationCap,
   Layers,
   LayoutDashboard,
   Library,
+  LockKeyhole,
   Mic,
   Network,
   PanelLeftClose,
@@ -26,6 +28,8 @@ import {
   Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HIDE_ADMIRAL } from "@/lib/features";
+import { usePrivateGate } from "@/lib/private-area";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/auth-gate";
 
@@ -34,6 +38,7 @@ const NAV = [
   { href: "/mind-map", label: "Mind Map", icon: Network },
   { href: "/company", label: "Company Brief", icon: Building2 },
   { href: "/round-1", label: "Round 1 Playbook", icon: Target },
+  { href: "/admiral-iga", label: "Admiral IGA Playbook", icon: Fingerprint },
   { href: "/plan", label: "Interview Plan", icon: CalendarClock },
   { href: "/roadmap", label: "Roadmap", icon: CalendarCheck },
   { href: "/java-lab", label: "Java Lab", icon: Braces },
@@ -47,7 +52,11 @@ const NAV = [
   { href: "/flashcards", label: "Flashcards", icon: Library },
   { href: "/analytics", label: "Analytics", icon: Activity },
   { href: "/cheatsheet", label: "Cheat Sheet", icon: ScrollText },
-];
+].filter((item) => !(HIDE_ADMIRAL && item.href === "/admiral-iga"));
+
+// Only rendered when the private area exists (public build, or a server with
+// PRIVATE_AREA_PASSWORD set) — see Sidebar.
+const PRIVATE_ENTRY = { href: "/private", label: "Private Area", icon: LockKeyhole };
 
 function Brand() {
   return (
@@ -95,7 +104,12 @@ function setSidebarCollapsed(next: boolean) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const activeIndex = NAV.findIndex((n) => n.href === pathname);
+  const gate = usePrivateGate();
+  // Public build always offers the way in; a local server with a password set
+  // offers it too, otherwise there would be no way to unlock.
+  const items = gate.configured || HIDE_ADMIRAL
+    ? [...NAV, PRIVATE_ENTRY]
+    : NAV;
 
   return (
     <>
@@ -117,7 +131,7 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
@@ -175,7 +189,7 @@ export function Sidebar() {
           </div>
         </div>
         <nav className="scrollbar-none flex gap-1 overflow-x-auto px-3 pb-2">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link

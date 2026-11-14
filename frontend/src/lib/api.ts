@@ -1,3 +1,5 @@
+import { clearPrivateToken, getPrivateToken } from "@/lib/private-token";
+
 const STORAGE_KEY = "sdet-gym-api-url";
 
 function getBase(): string {
@@ -38,15 +40,20 @@ export function clearApiBaseUrl(): void {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Protected routes (Admiral playbook, assistant) need the token minted by
+  // POST /api/private/unlock. It is only sent to our own backend.
+  const token = getPrivateToken();
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("X-Gym-Access", token);
+
   const resp = await fetch(`${getBase()}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers,
     cache: "no-store",
   });
   if (!resp.ok) {
+    // An expired or rotated token must not leave the UI half-unlocked.
+    if (resp.status === 401) clearPrivateToken();
     let message = `Request failed (${resp.status})`;
     try {
       const body = await resp.json();
@@ -63,9 +70,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: body === undefined ? "{}" : JSON.stringify(body) }),
+    request<T>(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? "{}" : JSON.stringify(body),
+    }),
+  postForm: <T,>(path: string, form: FormData) =>
+    request<T>(path, { method: "POST", body: form }),
   put: <T,>(path: string, body?: unknown) =>
-    request<T>(path, { method: "PUT", body: body === undefined ? "{}" : JSON.stringify(body) }),
+    request<T>(path, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? "{}" : JSON.stringify(body),
+    }),
   delete: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 

@@ -33,3 +33,7 @@ services:
       # Optional LLM scoring; leave empty for the rule-based rubric.
       - key: LLM_API_KEY
         sync: false
+      # In-app interview assistant (Groq). sync: false => Render prompts for it
+      # and stores it encrypted; it is never committed to the repo.
+      - key: GROQ_API_KEY
+        sync: false

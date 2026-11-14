@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 EVIDENCE = {"official", "jd", "reported", "standard"}
-SOURCE_TYPES = {"official", "brief", "standard"}
+SOURCE_TYPES = {"official", "brief", "standard", "internal"}
 
 
 def test_round1_payload_shape(client):
@@ -75,11 +75,14 @@ def test_round1_sources_are_labelled_and_linked(client):
         assert source["supports"].strip()
         assert source["accessed"]
 
-    # Every source type is known, and only the local brief may omit a URL.
+    # Every source type is known. Only the local brief and the internal
+    # current-role brief may omit a URL; public sources must link.
     for source in body["sources"]:
         assert source["type"] in SOURCE_TYPES, source["id"]
-        if source["type"] != "brief":
+        if source["type"] in {"official", "standard"}:
             assert source["url"].startswith("http"), source["id"]
+        if source["type"] in {"brief", "internal"}:
+            assert source["url"] == "", source["id"]
 
     # The two claims the page leans on hardest are present.
     assert by_id["star"]["url"].endswith("/how-to-prepare-for-a-behavioral-based-interview")
@@ -102,3 +105,31 @@ def test_round1_official_facts_cite_known_sources(client):
 def test_round1_count_appears_in_dashboard_inventory(client):
     content = client.get("/api/dashboard").json()["content"]
     assert content["round1_questions"] >= 20
+
+
+def test_round1_current_role_evidence_is_internal_and_task_based(client):
+    """Admiral evidence is your own role brief: internal, unlinked and described
+    as tasks performed — not ticket numbers and not Schwab material."""
+    body = client.get("/api/round1").json()
+    by_id = {s["id"]: s for s in body["sources"]}
+
+    assert by_id["admiral-brief"]["type"] == "internal"
+    assert by_id["admiral-brief"]["url"] == ""
+    assert "Admiral" in by_id["admiral-brief"]["supports"]
+    assert "No Admiral source was queried" in by_id["admiral-brief"]["supports"]
+
+    questions = [
+        q
+        for section in body["sections"]
+        for q in section["questions"]
+        if q.get("admiral_evidence")
+    ]
+    assert len(questions) >= 6
+    for q in questions:
+        assert "admiral-brief" in q["source_ids"], q["id"]
+        assert q["admiral_evidence"].strip()
+        assert q["evidence"] in EVIDENCE
+
+    joined = " ".join(q["admiral_evidence"] for q in questions)
+    assert "IAMPAM" not in joined, "tasks, not ticket keys, belong in the Schwab answers"
+

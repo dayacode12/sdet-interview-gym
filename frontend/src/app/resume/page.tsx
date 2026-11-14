@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ChevronDown, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ChevronDown, Fingerprint, UserCheck } from "lucide-react";
 import { api } from "@/lib/api";
+import { HIDE_ADMIRAL } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
 interface QuestionMeta {
@@ -10,6 +12,21 @@ interface QuestionMeta {
   title: string;
   category: string;
   needs_candidate_detail: boolean;
+}
+
+interface AdmiralEvidence {
+  evidence: string;
+  use_it: string;
+}
+
+interface CurrentRole {
+  title: string;
+  company: string;
+  status: string;
+  summary: string;
+  focus: string[];
+  sprint: string;
+  note: string;
 }
 
 interface QuestionDetail {
@@ -21,17 +38,25 @@ interface QuestionDetail {
   star: { situation: string; task: string; action: string; result: string };
   strong_answer: string;
   followups: string[];
+  admiral_evidence?: AdmiralEvidence | null;
 }
 
 export default function ResumePage() {
   const [questions, setQuestions] = useState<QuestionMeta[]>([]);
+  const [currentRole, setCurrentRole] = useState<CurrentRole | null>(null);
   const [selected, setSelected] = useState<QuestionMeta | null>(null);
   const [detail, setDetail] = useState<QuestionDetail | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<{ questions: QuestionMeta[] }>("/api/resume/questions").then((r) => setQuestions(r.questions)).catch((e) => setError(e.message));
+    api
+      .get<{ questions: QuestionMeta[]; current_role?: CurrentRole }>("/api/resume/questions")
+      .then((r) => {
+        setQuestions(r.questions);
+        setCurrentRole(r.current_role ?? null);
+      })
+      .catch((e) => setError(e.message));
   }, []);
 
   async function select(q: QuestionMeta) {
@@ -56,6 +81,33 @@ export default function ResumePage() {
           contain gaps only you can fill — the platform will not invent numbers or events for you.
         </p>
       </header>
+
+      {currentRole && !HIDE_ADMIRAL ? (
+        <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <Fingerprint className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+                  Current role: {currentRole.title} · {currentRole.company}
+                </p>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-indigo-900/80 dark:text-indigo-200/80">
+                  {currentRole.summary}
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+              CURRENT ROLE
+            </span>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-indigo-900/70 dark:text-indigo-200/70">
+            {currentRole.note}{" "}
+            <Link href="/admiral-iga" className="font-medium underline underline-offset-2">
+              Open the Admiral IGA playbook
+            </Link>
+          </p>
+        </section>
+      ) : null}
 
       {error ? (
         <div className="flex items-center gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950 p-3 text-sm text-rose-800 dark:text-rose-400">
@@ -134,6 +186,22 @@ export default function ResumePage() {
                   <p className="mt-2 text-sm leading-relaxed text-emerald-950 dark:text-emerald-300">{detail.strong_answer}</p>
                 ) : null}
               </div>
+
+              {detail.admiral_evidence && !HIDE_ADMIRAL ? (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-indigo-900 dark:text-indigo-300">
+                    <Fingerprint className="h-4 w-4" />
+                    Current-role evidence from Admiral
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-indigo-950 dark:text-indigo-200">
+                    {detail.admiral_evidence.evidence}
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-indigo-900/80 dark:text-indigo-200/80">
+                    <span className="font-semibold">How to use it:</span>{" "}
+                    {detail.admiral_evidence.use_it}
+                  </p>
+                </div>
+              ) : null}
 
               {detail.followups?.length ? (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">

@@ -1,15 +1,30 @@
-name: Deploy UI to GitHub Pages
+name: Publish public site
 
-# Builds the Next.js frontend as a static export and publishes it to
-# GitHub Pages. The backend runs on Render (see render.yaml).
+# Split deploy:
+#   * THIS repo stays private (the source, the Admiral brief, the assistant).
+#   * Only the static export is pushed to a separate PUBLIC repo, which serves
+#     GitHub Pages. Pages on a free plan needs a public repo, so this is the
+#     way to keep the source private without paying for Pro.
 #
-# One-time setup after the first run:
-#   1. Repo Settings -> Pages -> Build and deployment -> Source: GitHub Actions
-#   2. (Optional) Settings -> Secrets and variables -> Actions -> Variables ->
-#      add NEXT_PUBLIC_API_URL = https://<your-render-service>.onrender.com
-#      so the correct backend URL is baked in at build time.
-#      Until then, the UI shows a "Backend not reachable" box on the dashboard
-#      where you can paste your Render URL once (stored in the browser).
+# What the public build deliberately does NOT contain:
+#   * Admiral playbook copy — the page ships locked and its content only comes
+#     from the gated /api/admiral endpoint.
+#   * The AI assistant — never mounted, no Groq calls from the public site.
+#   Both are controlled by NEXT_PUBLIC_HIDE_* below.
+#
+# Required repository settings (Settings -> Secrets and variables -> Actions):
+#   Variables:
+#     SITE_REPO            owner/name of the PUBLIC site repo, e.g. dayacode12/sdet-interview-gym-site
+#     NEXT_PUBLIC_API_URL  https://<render-service>.onrender.com   (optional, has a default)
+#     SITE_BASE_PATH       optional. Override the Pages sub-path (e.g. "" for a custom domain).
+#   Secrets:
+#     SITE_REPO_TOKEN      PAT with "Contents: read and write" on the public repo only.
+#
+# One-time on the PUBLIC repo:
+#   Settings -> Pages -> Source: Deploy from a branch -> Branch: gh-pages / (root)
+#
+# Backend note: /api/admiral and /api/assistant/* return 401 until the server
+# has PRIVATE_AREA_PASSWORD set. Set it on Render, not here.
 
 on:
   push:
@@ -18,19 +33,48 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: public-site
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout source (private repo)
         uses: actions/checkout@v4
+
+      - name: Check the publish target is configured
+        env:
+          SITE_REPO: ${{ vars.SITE_REPO }}
+          SITE_REPO_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SITE_REPO}" ]; then
+            echo "::error::Set the SITE_REPO repository variable (owner/name of the public site repo)."
+            exit 1
+          fi
+          if [ -z "${SITE_REPO_TOKEN}" ]; then
+            echo "::error::Set the SITE_REPO_TOKEN secret (a PAT with Contents: read and write on ${SITE_REPO})."
+            exit 1
+          fi
+          echo "Publishing to ${SITE_REPO}"
+
+      - name: Work out the Pages base path
+        id: paths
+        env:
+          SITE_REPO: ${{ vars.SITE_REPO }}
+          SITE_BASE_PATH: ${{ vars.SITE_BASE_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SITE_BASE_PATH:-}" ]; then
+            base="${SITE_BASE_PATH}"
+          else
+            base="/${SITE_REPO##*/}"
+          fi
+          echo "base_path=${base}" >> "$GITHUB_OUTPUT"
+          echo "Pages base path: '${base}'"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -43,26 +87,61 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Static export build
+      - name: Static export build (public subset)
         run: npm run build
         working-directory: frontend
         env:
           NEXT_OUTPUT: export
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.paths.outputs.base_path }}
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://sdet-interview-gym-api.onrender.com' }}
+          NEXT_PUBLIC_HIDE_ADMIRAL: "1"
+          NEXT_PUBLIC_HIDE_ASSISTANT: "1"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: frontend/out
+      - name: Fail if private content leaked into the export
+        run: |
+          set -euo pipefail
+          cd frontend/out
+          # Ticket ids only appear in the Admiral brief. If one of these shows up
+          # in the published files, the gate is not doing its job — stop here
+          # rather than publish it.
+          if grep -rIl --exclude-dir=_next 'IAMPAM-' . ; then
+            echo "::error::Admiral ticket ids found in the static export. Refusing to publish."
+            exit 1
+          fi
+          echo "No Admiral ticket ids in the export."
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Add .nojekyll
+        run: touch frontend/out/.nojekyll
+
+      - name: Push the export to the public site repo
+        env:
+          SITE_REPO: ${{ vars.SITE_REPO }}
+          SITE_REPO_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd frontend/out
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish ${SOURCE_SHA} from ${SOURCE_REPO}"
+          # --force: the site repo holds build output only; its history is
+          # disposable and force-pushing keeps it from growing forever.
+          git push --force \
+            "https://x-access-token:${SITE_REPO_TOKEN}@github.com/${SITE_REPO}.git" \
+            HEAD:gh-pages
+
+      - name: Summary
+        env:
+          SITE_REPO: ${{ vars.SITE_REPO }}
+        run: |
+          {
+            echo "### Published"
+            echo ""
+            echo "Site repo: \`${SITE_REPO}\` (branch \`gh-pages\`)"
+            echo ""
+            echo "Admiral playbook and the assistant are locked in this build;"
+            echo "they need the backend password (\`PRIVATE_AREA_PASSWORD\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

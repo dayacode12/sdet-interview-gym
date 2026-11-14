@@ -31,6 +31,20 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-4o-mini"
 
+    # In-app interview assistant (Groq, OpenAI-compatible chat completions).
+    # The key is read from the environment / .env and never sent to the client.
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "openai/gpt-oss-120b"
+    # Dictation uploads are transcribed by Groq Whisper (audio never reaches
+    # the browser's built-in speech service).
+    groq_whisper_model: str = "whisper-large-v3-turbo"
+
+    # Password for the private area (Admiral playbook + assistant). Empty means
+    # the gate is off, which is what local development wants. Set it on the
+    # hosted backend so the public site cannot read those endpoints.
+    private_area_password: str = ""
+
     # SQLite by default; PostgreSQL in docker-compose via DATABASE_URL.
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'sdet_gym.db').as_posix()}"
 

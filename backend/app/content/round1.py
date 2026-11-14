@@ -10,6 +10,11 @@ Evidence discipline:
   * "reported"  = publicly reported by candidates (see the brief), not official.
   * "standard"  = technical answer grounded in a vendor spec or standard.
 
+Some questions also carry `admiral_evidence`: tasks from your current IGA role
+at Admiral Group, taken only from the role brief you provided. It is labelled
+as current-role evidence, never as Schwab material, and no Admiral system was
+queried for it.
+
 Schwab does NOT publish technical interview questions. Everything technical
 below is a prediction, labelled as such. The official facts are quoted and
 linked; they describe the process and the behavioural method, not a question
@@ -91,6 +96,23 @@ SOURCES = [
             "the Teams format. It names Dataford, Glassdoor, AmbitionBox, "
             "SecInterviews, CyberInterviewQuestions, Techlead.org and Indeed as "
             "its secondary inputs."
+        ),
+        "accessed": ACCESSED,
+    },
+    {
+        "id": "admiral-brief",
+        "name": "Your Admiral Group IGA role brief",
+        "publisher": "You / Daya Sagar (internal)",
+        "type": "internal",
+        "url": "",
+        "supports": (
+            "Your current role and the tasks you perform: CIAM reconciliation "
+            "stages 1A-1E and Stage 2 termination, external joiner onboarding, "
+            "leaver dashboards, access request forms, ServiceNow delegation, "
+            "certification escalation and regression buckets, release hygiene, "
+            "static-user harnesses, vault/TLS for test credentials, and the race "
+            "between attribute updates and absence records. No Admiral source was "
+            "queried for this page."
         ),
         "accessed": ACCESSED,
     },
@@ -694,6 +716,10 @@ SECTIONS = [
                     "point: the server must reject, not just the UI. A 401 means we "
                     "don't know who you are; a 403 means we do and you still can't."
                 ),
+                "admiral_evidence": (
+                    "At Admiral you authenticate to Saviynt and ServiceNow APIs with vaulted "
+                    "service credentials over TLS, and assert the 401/403 matrix server-side."
+                ),
                 "code": "",
                 "key_points": [
                     "Token acquisition is a flow, not a hardcoded string.",
@@ -711,7 +737,7 @@ SECTIONS = [
                     "Confusing authentication with authorization.",
                     "Assuming a 404 means the object doesn't exist rather than 'not yours'.",
                 ],
-                "source_ids": ["brief", "owasp-authz", "owasp-api", "rfc6749"],
+                "source_ids": ["brief", "owasp-authz", "owasp-api", "rfc6749", "admiral-brief"],
             },
             {
                 "id": "r1-api-schema",
@@ -731,6 +757,10 @@ SECTIONS = [
                     "invalid request must not leave a partial row — that is a "
                     "transaction-boundary defect. Finally check for duplicates, "
                     "because a retried POST that creates two rows is a real bug."
+                ),
+                "admiral_evidence": (
+                    "Your reconciliation work compares source, processed, failed and target "
+                    "records — the same contract-plus-side-effect discipline at data scale."
                 ),
                 "code": (
                     "-- after the API returns 201 with id = :id\n"
@@ -754,7 +784,7 @@ SECTIONS = [
                     "Sleeping for a fixed time and hoping.",
                     "Ignoring the audit trail in a regulated environment.",
                 ],
-                "source_ids": ["brief", "rest-assured", "json-schema", "postgres-select"],
+                "source_ids": ["brief", "rest-assured", "json-schema", "postgres-select", "admiral-brief"],
             },
             {
                 "id": "r1-sql-inactive",
@@ -773,6 +803,10 @@ SECTIONS = [
                     "has no status column, drop that predicate and treat any "
                     "assignment as active. Add an index on users.status and "
                     "user_roles.user_id if this runs often."
+                ),
+                "admiral_evidence": (
+                    "You use this query shape in the SQLMD1 certification regression bucket "
+                    "to find decisions that did not remove downstream access."
                 ),
                 "code": (
                     "SELECT u.user_id, u.username, r.role_name\n"
@@ -799,7 +833,7 @@ SECTIONS = [
                     "Forgetting that INNER JOIN hides role-less users.",
                     "Running UPDATE instead of SELECT during an interview.",
                 ],
-                "source_ids": ["brief", "postgres-select"],
+                "source_ids": ["brief", "postgres-select", "admiral-brief"],
             },
             {
                 "id": "r1-sql-orphans",
@@ -816,6 +850,10 @@ SECTIONS = [
                     "prevents orphans going forward but does not prove historical "
                     "data is clean, and case-insensitive duplicates can slip past a "
                     "case-sensitive unique index."
+                ),
+                "admiral_evidence": (
+                    "Duplicate and orphan detection is part of your reconciliation work "
+                    "between Transmit Security CIAM and Saviynt."
                 ),
                 "code": (
                     "-- duplicate usernames, case-insensitive\n"
@@ -846,7 +884,7 @@ SECTIONS = [
                     "Assuming a unique constraint covers case variations.",
                     "Deleting rows before capturing evidence.",
                 ],
-                "source_ids": ["brief", "postgres-select"],
+                "source_ids": ["brief", "postgres-select", "admiral-brief"],
             },
             {
                 "id": "r1-batch-job",
@@ -1001,6 +1039,11 @@ SECTIONS = [
                     "and OIDC for modern web/mobile login. For public clients, use "
                     "authorization code with PKCE."
                 ),
+                "admiral_evidence": (
+                    "At Admiral you test Transmit Security CIAM identity flows into Saviynt, "
+                    "across Entra ID and Active Directory and REST-based applications, so the "
+                    "protocol claims are grounded in real integrations."
+                ),
                 "code": "",
                 "key_points": [
                     "SAML = XML assertions, browser SSO, enterprise.",
@@ -1018,7 +1061,7 @@ SECTIONS = [
                     "Mixing up the ID token and the access token.",
                     "Forgetting audience/issuer validation on the JWT.",
                 ],
-                "source_ids": ["brief", "rfc6749", "oidc-core", "saml"],
+                "source_ids": ["brief", "rfc6749", "oidc-core", "saml", "admiral-brief"],
             },
             {
                 "id": "r1-jml",
@@ -1041,6 +1084,11 @@ SECTIONS = [
                     "survive the person. Test the full chain: HR event → IGA → "
                     "connector → target app → login attempt."
                 ),
+                "admiral_evidence": (
+                    "Current role: external joiner onboarding, Stage 2 termination and the "
+                    "leaver manual-action dashboards. Lead with those tasks, then the general "
+                    "lifecycle."
+                ),
                 "code": "",
                 "key_points": [
                     "Three phases, with the control that matters in each.",
@@ -1058,7 +1106,7 @@ SECTIONS = [
                     "Forgetting downstream apps and active sessions.",
                     "Assuming the HR event always arrives.",
                 ],
-                "source_ids": ["brief", "nist-207", "owasp-authz"],
+                "source_ids": ["brief", "nist-207", "owasp-authz", "admiral-brief"],
             },
             {
                 "id": "r1-rbac-abac",
@@ -1115,6 +1163,10 @@ SECTIONS = [
                     "standing access from spreading, PAM removes standing admin "
                     "credentials and records what was done with them."
                 ),
+                "admiral_evidence": (
+                    "Your current role vaults its own test credentials and uses TLS; CyberArk "
+                    "administration is from your earlier role. Say that boundary out loud."
+                ),
                 "code": "",
                 "key_points": [
                     "PAM: vault, rotate, check-out, JIT, record.",
@@ -1132,7 +1184,7 @@ SECTIONS = [
                     "Claiming IGA and PAM are the same thing.",
                     "Forgetting session recording and approval evidence.",
                 ],
-                "source_ids": ["brief", "nist-207", "owasp-authz"],
+                "source_ids": ["brief", "nist-207", "owasp-authz", "admiral-brief"],
             },
             {
                 "id": "r1-certification",
@@ -1153,6 +1205,11 @@ SECTIONS = [
                     "revoke. Then prove the remediation actually removed downstream "
                     "access, not just closed the campaign task."
                 ),
+                "admiral_evidence": (
+                    "Current role: certification escalation templates are in test this "
+                    "sprint, and you maintain a SQLMD1 regression bucket for certification "
+                    "decisions."
+                ),
                 "code": "",
                 "key_points": [
                     "Scope → reviewer → decision → remediation → evidence.",
@@ -1170,7 +1227,7 @@ SECTIONS = [
                     "No sampling or quality check on decisions.",
                     "Revoking in the IGA tool but not in the target app.",
                 ],
-                "source_ids": ["brief", "nist-162", "owasp-authz"],
+                "source_ids": ["brief", "nist-162", "owasp-authz", "admiral-brief"],
             },
             {
                 "id": "r1-mfa",
@@ -1270,6 +1327,11 @@ SECTIONS = [
                     "regression test that attempts login after termination and "
                     "asserts failure at the API, not just the UI."
                 ),
+                "admiral_evidence": (
+                    "Current role: Stage 2 termination plus the race between attribute "
+                    "updates and absence records. Use that as the concrete example when you "
+                    "walk the chain."
+                ),
                 "code": "",
                 "key_points": [
                     "Contain, preserve evidence, then diagnose.",
@@ -1287,7 +1349,7 @@ SECTIONS = [
                     "Only checking the IGA console, not the target app.",
                     "Forgetting SSO sessions and refresh tokens.",
                 ],
-                "source_ids": ["brief", "nist-207", "owasp-authz"],
+                "source_ids": ["brief", "nist-207", "owasp-authz", "admiral-brief"],
             },
             {
                 "id": "r1-admin-grant",
@@ -1346,7 +1408,7 @@ FLOW = {
             "title": "Introductions and role overview",
             "do": "Confirm you can hear each other, thank them, and give the 90-second pitch. Ask one logistics question only if it matters.",
             "evidence": "official",
-            "source_ids": ["how-we-hire", "star"],
+            "source_ids": ["how-we-hire", "star", "admiral-brief"],
             "must_cover": [
                 "Name, current role and years of experience in one breath — no life story.",
                 "The three pillars: Java UI/API automation, SQL and data validation, IAM/security testing.",
@@ -1355,27 +1417,28 @@ FLOW = {
             ],
             "example": (
                 "\"Hi, thanks for making the time — can you hear me clearly? Good. "
-                "I'm Daya Sagar, a QA automation engineer with about two years of "
-                "experience across UI, API and identity testing. Most of that has "
-                "been building and owning automated suites in Java — Selenium and "
-                "Playwright for UI, REST Assured for API, SQL for the data checks "
-                "underneath. The last year has been heavily identity-focused: "
-                "joiner-mover-leaver workflows, access certification and "
-                "termination testing in Saviynt, with CyberArk on the privileged "
-                "side. I'm interested in this role because it sits exactly where "
-                "I've been working — quality engineering on a security surface — "
-                "and I want to go deeper on the cyber side. Before we start, is "
-                "there anything about the format I should know — will we be coding "
-                "in a shared editor, or should I talk through code as I go?\""
+                "I'm Daya Sagar, an SDET in the Identity Governance and "
+                "Administration team at Admiral Group, with about two years across "
+                "UI, API and identity testing. My current work is Saviynt IGA, "
+                "Transmit Security CIAM, Entra ID and ServiceNow integrations: CIAM "
+                "reconciliation, joiner-mover-leaver, access certification and "
+                "access request forms. Before that I built and owned Java automation "
+                "suites — Selenium and Playwright for UI, REST Assured for API, SQL "
+                "for the data checks underneath. I'm interested in this role because "
+                "it sits exactly where I've been working — quality engineering on a "
+                "security surface — and I want to go deeper on the cyber side. "
+                "Before we start, is there anything about the format I should know — "
+                "will we be coding in a shared editor, or should I talk through code "
+                "as I go?\""
             ),
             "example_code": "",
         },
         {
             "minutes": "5–15",
             "title": "Resume deep dive",
-            "do": "Walk the Playwright migration, the 300+ case suite and one IAM investigation. For every claim, have the method and the number ready.",
+            "do": "Walk the current IGA work first, then one earlier engineering project. For every claim, have the method and the number ready.",
             "evidence": "reported",
-            "source_ids": ["brief"],
+            "source_ids": ["brief", "admiral-brief"],
             "must_cover": [
                 "One project, not the whole resume: situation → what you owned → method → measured result.",
                 "Numbers with the measurement method attached (same suite, same environment, median of runs).",
@@ -1383,22 +1446,23 @@ FLOW = {
                 "Answer the 'why' behind each decision, not just the tool names.",
             ],
             "example": (
-                "\"The project I'd point to first is our regression suite. When I "
-                "took it over it was Selenium and TestNG, around 300 cases, and "
-                "flakiness was the main pain — most failures were wait-related, not "
-                "product defects. I owned the migration to Playwright. I started "
-                "with one vertical slice — login through account summary — so we "
-                "could prove it in CI before touching the rest. I replaced sleeps "
-                "and implicit waits with web-first assertions, moved page objects "
-                "onto fixtures, and kept the same scenarios so coverage stayed "
-                "comparable. Then I measured: same suite, same environment, ten "
-                "consecutive runs, comparing the median — regression runtime came "
-                "down roughly a third and wait-related flakes dropped sharply. "
-                "What I'd flag is what we didn't get for free: Selenium's browser "
-                "breadth was wider, so we kept a small Selenium job for the "
-                "browsers Playwright didn't cover. On the IAM side, the "
-                "investigation I'm proudest of started with a terminated user who "
-                "could still log into an app.\""
+                "\"The work I'd point to first is the current one. I'm an SDET in IGA "
+                "at Admiral Group: I test CIAM reconciliation stage by stage — source, "
+                "processed, failed and target records — then Stage 2 termination and "
+                "external joiner onboarding. Around that I test access request forms, "
+                "ServiceNow delegation, certification escalation templates and a "
+                "SQLMD1 certification regression bucket. I also keep static-user "
+                "harnesses deterministic and vault the credentials my tooling uses, "
+                "so a run never depends on a shared account. Before this role I owned "
+                "a Selenium-to-Playwright migration: around 300 cases, and "
+                "wait-related flakiness was the main pain. I moved page objects onto "
+                "fixtures, replaced sleeps with web-first assertions, kept the same "
+                "scenarios so coverage stayed comparable, and measured on the same "
+                "suite and environment across ten runs — median runtime came down "
+                "roughly a third. We kept a small Selenium job for the browsers "
+                "Playwright did not cover; that is the limitation I'd volunteer. On "
+                "the IAM side, the investigation I'm proudest of started with a "
+                "terminated user who could still log into an app.\""
             ),
             "example_code": "",
         },
@@ -1507,7 +1571,7 @@ FLOW = {
             "title": "IAM and security scenarios",
             "do": "Use the evidence chain: HR → IGA → connector → target → session. Contain first, then diagnose, then prevent.",
             "evidence": "reported",
-            "source_ids": ["brief", "technology", "owasp-authz"],
+            "source_ids": ["brief", "technology", "owasp-authz", "admiral-brief"],
             "must_cover": [
                 "Contain, preserve evidence, then diagnose — in that order.",
                 "Walk the chain: HR event → IGA → connector → target app → live session.",
@@ -1523,8 +1587,12 @@ FLOW = {
                 "event arrive, did IGA mark the identity inactive, did the connector "
                 "run against that app, does the app hold a local account outside "
                 "SSO, and is there a remembered device or long-lived session "
-                "keeping them in? If it's a SaaS app with its own local admin, the "
-                "connector may never have owned that account. Once the root cause is "
+                "keeping them in? At Admiral the two things I check first are a "
+                "Stage 2 termination that did not fan out to every application, and "
+                "the race between attribute updates and absence records — a late "
+                "update can recreate access after the leaver job has run. If it's a "
+                "SaaS app with its own local admin, the connector may never have "
+                "owned that account. Once the root cause is "
                 "fixed I'd add two things: a regression test that fires a "
                 "termination event and asserts the login fails at the API — not "
                 "just in the UI — and an alert if a terminated identity "
@@ -1570,9 +1638,9 @@ GAP = {
     ),
     "do": [
         "Acknowledge the gap in one sentence and move on — no apology spiral.",
-        "Lead with scope and ownership: 300+ automated tests, the Playwright migration, mentoring, IAM workflows.",
+        "Lead with the current role: IGA at Admiral Group, with the tasks you actually perform today.",
         "Quantify with method: 33% regression reduction measured on the same suite and environment, median of runs.",
-        "Map depth to the role: Saviynt IGA, CyberArk PAM, REST Assured, SQL, Java — the exact intersection Schwab names.",
+        "Map depth to the role: Saviynt IGA, Transmit CIAM, Entra ID, ServiceNow, REST Assured, SQL and Java — the exact intersection Schwab names.",
         "Offer the learning plan: what you would ramp on first and how you would prove it.",
     ],
     "dont": [
@@ -1583,15 +1651,17 @@ GAP = {
     ],
     "script": (
         "\"The posting describes an ideal of seven years; I'm at about two. "
-        "What I can show you is depth in the exact work: I've owned 300+ "
-        "automated tests across UI and API, led a Selenium-to-Playwright "
-        "migration that cut regression time by roughly a third, and tested "
-        "IAM workflows end to end — joiner-mover-leaver, access certification "
-        "and termination. I haven't had seven years of reps, but I've had "
-        "unusually broad ownership for two, and I ramp quickly. If you want "
-        "the person who has seen more codebases, that's a fair question. If "
-        "you want someone who can own quality for an IAM surface and grow into "
-        "the seniority, that's the case I'm making.\""
+        "What I can show you is depth in the exact work. I'm currently an SDET "
+        "in Identity Governance and Administration at Admiral Group, testing "
+        "Saviynt, Transmit Security CIAM, Entra ID and ServiceNow integrations — "
+        "reconciliation, joiner-mover-leaver, certification and access requests. "
+        "Before that I owned 300+ automated tests across UI and API and led a "
+        "Selenium-to-Playwright migration that cut regression time by roughly a "
+        "third. I haven't had seven years of reps, but I've had unusually broad "
+        "ownership for two, and I ramp quickly. If you want the person who has "
+        "seen more codebases, that's a fair question. If you want someone who can "
+        "own quality for an IAM surface and grow into the seniority, that's the "
+        "case I'm making.\""
     ),
 }
 
@@ -1643,7 +1713,9 @@ DISCLAIMER = (
     "informed by your job description, your round1.md brief and public candidate "
     "reports — not leaked or official Schwab material. Technical answers are "
     "checked against the standards and vendor documentation listed in the source "
-    "ledger."
+    "ledger. Some questions also carry current-role evidence from your Admiral "
+    "Group IGA role brief, labelled as internal; it is your own experience, not "
+    "Schwab material, and no Admiral system was queried for it."
 )
 
 

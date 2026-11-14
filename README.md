@@ -110,6 +110,31 @@ an OpenAI-compatible LLM instead, set `LLM_API_KEY` (and optionally `LLM_BASE_UR
 `LLM_MODEL`) in `backend/.env`. If the LLM call fails, scoring falls back to
 rule-based and says so — it never silently fakes an LLM verdict.
 
+### Interview assistant (global, Groq)
+
+Every page has an **Ask** button (or `Alt+K`) that opens the interview assistant.
+It answers from this repo's own content only — the Round 1 and Admiral playbooks,
+resume deep dive, company brief, IAM lab, scenarios, flashcards, mock interview,
+Java/automation/SQL labs and roadmap. It retrieves the closest excerpts, sends
+them to Groq with a strict grounding prompt, and shows the source pages as chips.
+If the repo does not cover the question, it says so instead of guessing.
+
+Set the key on the **server** only:
+
+```bash
+# backend/.env (git-ignored) or the Render dashboard environment
+GROQ_API_KEY=your-key-here
+# optional: GROQ_MODEL=openai/gpt-oss-120b
+```
+
+The browser never sees the key: the UI calls `POST /api/assistant/ask` on the
+backend. Without a key the endpoint reports `503` and the panel shows the exact
+setup step. If Groq is unreachable, the panel degrades to the matched excerpts
+and labels them "Excerpts only — model unavailable".
+
+The assistant (and the Admiral playbook) sit behind the private-area password on
+hosted deployments — see [Lock the private area](#4-lock-the-private-area-on-the-backend).
+
 ## Docker Compose
 
 ```bash
@@ -159,20 +184,52 @@ The repo is a normal git checkout — `main` is the deploy branch for both hosts
 > back up your progress (or redeploy a fresh database and export/import what
 > you need). Locally nothing changes — SQLite is still the default.
 
-### 3. Publish the UI on GitHub Pages
+### 3. Publish the UI to a separate public repo (split deploy)
 
-1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. The `Deploy UI to GitHub Pages` workflow runs on every push to `main`. It
-   builds the frontend as a static export (`NEXT_OUTPUT=export`, base path
-   `/<repo>`) and publishes it. Your UI lands at
-   `https://<user>.github.io/<repo>/`.
-3. The workflow bakes in the backend URL from the Actions **variable**
-   `NEXT_PUBLIC_API_URL` (Settings → Secrets and variables → Actions →
-   Variables). If the variable is absent it defaults to
-   `https://sdet-interview-gym-api.onrender.com`, matching the blueprint's
-   service name — so with default names, no variable is needed.
+The source repo holds the Admiral brief and the assistant. To keep that private
+without paying for GitHub Pro, only the **built site** is published:
 
-### 4. Point the UI at your backend (one of two ways)
+1. Create a second, **public** repo, e.g. `<user>/sdet-interview-gym-site`
+   (no README needed).
+2. In **that** repo: Settings → Pages → Source: **Deploy from a branch** →
+   Branch `gh-pages`, folder `/ (root)`.
+3. In **this** (private) repo: Settings → Secrets and variables → Actions:
+   - **Variable** `SITE_REPO` = `<user>/sdet-interview-gym-site`
+   - **Secret** `SITE_REPO_TOKEN` = a fine-grained PAT with *Contents: read and
+     write* on the public repo only (nothing else).
+   - Optional variable `NEXT_PUBLIC_API_URL` = your Render URL.
+   - Optional variable `SITE_BASE_PATH` — set it to `""` if you attach a custom
+     domain, otherwise the base path is `/<site-repo-name>`.
+4. Push to `main`. The `Publish public site` workflow builds with
+   `NEXT_PUBLIC_HIDE_ADMIRAL=1` and `NEXT_PUBLIC_HIDE_ASSISTANT=1`, refuses to
+   publish if an Admiral ticket id appears in the export, adds `.nojekyll`, and
+   force-pushes `frontend/out` to `gh-pages` in the public repo.
+5. Set the repo's visibility to private (Settings → General → Danger zone) once
+   the first publish succeeds.
+
+The public site lands at `https://<user>.github.io/<site-repo>/`. The GitHub
+Actions Pages source inside *this* repo is no longer used.
+
+### 4. Lock the private area on the backend
+
+The public build hides the Admiral page behind a password and never mounts the
+assistant. The password is checked on the server, not in the browser:
+
+1. Render dashboard → the API service → Environment →
+   add `PRIVATE_AREA_PASSWORD` (a long random value; also set it locally in
+   `backend/.env` if you want to test the gate).
+2. Without it, `/api/admiral` and `/api/assistant/*` are open, and the
+   "Private Area" page says so. With it, both return `401` until the correct
+   password is entered.
+3. The unlock lasts 12 hours in a tab. Rotating the password invalidates every
+   outstanding token immediately.
+
+Gated endpoints: `GET /api/admiral`, `GET /api/assistant/status`,
+`POST /api/assistant/ask`, `POST /api/assistant/transcribe`. The unlock
+endpoint is `POST /api/private/unlock` and is rate-limited to 10 wrong
+attempts per 5 minutes per client.
+
+### 5. Point the UI at your backend (one of two ways)
 
 - **Baked in**: set the `NEXT_PUBLIC_API_URL` Actions variable to your Render
   URL before the workflow runs.
@@ -181,8 +238,30 @@ The repo is a normal git checkout — `main` is the deploy branch for both hosts
   stored in that browser's localStorage and takes effect immediately.
 
 Local development is unaffected by all of this: with no `NEXT_OUTPUT` /
-`NEXT_PUBLIC_BASE_PATH` env vars set, `npm run dev` / `npm run build` behave
-exactly as before.
+`NEXT_PUBLIC_BASE_PATH` / `NEXT_PUBLIC_HIDE_*` env vars set, `npm run dev` and
+`npm run build` behave exactly as before (Admiral page visible, assistant on).
+
+To check the published variant locally — gate included — build with the flags,
+serve `frontend/out`, and run the script:
+
+```bash
+cd frontend
+NEXT_OUTPUT=export NEXT_PUBLIC_HIDE_ADMIRAL=1 NEXT_PUBLIC_HIDE_ASSISTANT=1 npm run build
+cd out && python -m http.server 3100
+# other terminal, backend with PRIVATE_AREA_PASSWORD set:
+cd frontend/e2e && node verify-public-build.mjs
+```
+
+### Security model — what this does and does not protect
+
+- **Protected:** the Admiral brief and assistant answers never enter the static
+  export; the API returns `401` without a server-verified token. The Groq key
+  stays server-side.
+- **Not protected:** the public *code* is public. Someone can read the JS,
+  call `/api/private/unlock` and guess a password — hence the long password and
+  the attempt throttle. Anyone with the password can read the private area.
+- **Still public:** the rest of the playbooks (Round 1, resume, IAM lab, SQL,
+  Java) are fetched from ungated endpoints by design.
 
 ## Tests
 

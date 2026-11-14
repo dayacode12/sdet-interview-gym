@@ -10,7 +10,9 @@ from sqlalchemy import text
 from app.config import JAVA_MODE, settings
 from app.database import Base, engine
 from app.routers import (
+    admiral,
     analytics,
+    assistant,
     automation,
     company,
     drafts,
@@ -19,6 +21,7 @@ from app.routers import (
     java,
     mindmap,
     mock,
+    private_area,
     resume,
     roadmap,
     round1,
@@ -33,6 +36,7 @@ CONTENT_INVENTORY = None  # computed at import below, from the real banks
 def _compute_inventory() -> dict:
     """Live counts from the content banks — never hardcoded, always truthful."""
     from app.content import (
+        admiral_iga,
         automation_lab,
         flashcards,
         iam_modules,
@@ -54,6 +58,7 @@ def _compute_inventory() -> dict:
         "mock_sections": len(mock_interview.MOCK_SECTIONS),
         "automation_exercises": len(automation_lab.EXERCISES),
         "round1_questions": round1.get_round1()["question_count"],
+        "admiral_questions": admiral_iga.get_admiral()["question_count"],
     }
 
 
@@ -102,6 +107,9 @@ for router in (
     settings_router.router,
     drafts.router,
     round1.router,
+    admiral.router,
+    assistant.router,
+    private_area.router,
 ):
     app.include_router(router)
 
@@ -125,6 +133,7 @@ def health():
         "status": "ok",
         "java_mode": JAVA_MODE,
         "llm_enabled": bool(settings.llm_api_key),
+        "assistant_enabled": bool(settings.groq_api_key),
         "database": database,
     }
 

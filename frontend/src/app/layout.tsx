@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { AuthGate } from "@/components/auth-gate";
+import { PrivateAssistantMount } from "@/components/private-assistant-mount";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
               <div className="content-shell mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>
             </main>
           </div>
+          <PrivateAssistantMount />
         </AuthGate>
       </body>
     </html>

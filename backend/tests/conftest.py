@@ -10,6 +10,8 @@ _TMP = tempfile.mkdtemp(prefix="sdet-gym-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{pathlib.Path(_TMP) / 'test.db'.replace(chr(92), '/')}"
 # Never touch an LLM during tests; keep rule-based scoring deterministic.
 os.environ["LLM_API_KEY"] = ""
+# Never call Groq from the test suite unless a test explicitly opts in.
+os.environ["GROQ_API_KEY"] = ""
 # Deterministic Java mode for the API tests (auto works too, but be explicit).
 os.environ.setdefault("JAVA_EXECUTION_MODE", "auto")
 

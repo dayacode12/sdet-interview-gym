@@ -489,6 +489,175 @@ RESUME_QUESTIONS = [
 ]
 
 
+# --- Current role: Admiral Group IGA -------------------------------------
+#
+# Sourced only from the Admiral IGA role brief Daya provided. No Admiral
+# system was queried and no public source was researched. The brief lists
+# projects and IAMPAM ticket keys but no measured numbers, so nothing here
+# invents a percentage, volume or time saving.
+
+ADMIRAL_ROLE = {
+    "title": "SDET — Identity Governance and Administration (IGA)",
+    "company": "Admiral Group",
+    "status": "current",
+    "summary": (
+        "You are an SDET in the Identity Governance and Administration team at "
+        "Admiral Group. The role covers Saviynt for IGA, Transmit Security for "
+        "customer identity, Entra ID and Active Directory, with ServiceNow in the "
+        "approval path. Your work spans CIAM reconciliation and correlation, "
+        "joiner-mover-leaver, access certifications and the integrations between "
+        "them, with evidence held in Zephyr Scale and IAMPAM Jira tickets."
+    ),
+    "focus": [
+        "CIAM reconciliation and correlation, stages 1A-1E then Stage 2",
+        "Joiner-mover-leaver, including external joiners and leaver dashboards",
+        "Access certifications, escalation templates and regression buckets",
+        "Access request forms (Stage 5A) and ServiceNow delegation",
+        "Evidence discipline: Zephyr cases traced to IAMPAM tickets",
+    ],
+    "sprint": "Q4-NOV-1-2026",
+    "note": (
+        "This banner and the per-question evidence come only from the Admiral IGA "
+        "role brief you provided. No Admiral source was queried or researched, and "
+        "the app never fetches an Admiral URL. Where the brief has no number, this "
+        "page does not invent one."
+    ),
+}
+
+ADMIRAL_EVIDENCE = {
+    "resume-300-tests": {
+        "evidence": (
+            "Current role: automated IGA harnesses plus structured manual testing, "
+            "with Zephyr Scale cases traced to Jira. The brief gives no suite count, "
+            "so treat 300+ as your earlier-role figure."
+        ),
+        "use_it": (
+            "Open with the current role as live proof of the discipline, then use "
+            "the 300+ suite as the earlier-role evidence of scale."
+        ),
+    },
+    "resume-framework-architecture": {
+        "evidence": (
+            "Static-user test harnesses, a credentials vault and TLS for the test "
+            "tooling: fixtures, configuration and secrets are framework concerns "
+            "you own in your current role."
+        ),
+        "use_it": (
+            "Use the harnesses as the current-role fixture example, and the "
+            "vault/TLS work for configuration and secrets handling."
+        ),
+    },
+    "resume-saviynt-jml": {
+        "evidence": (
+            "External joiner onboarding, Stage 2 termination, and the leaver "
+            "manual-action dashboards: the JML work you do now."
+        ),
+        "use_it": (
+            "Lead the leaver answer with Stage 2 termination, then use the "
+            "dashboards to explain how manual actions become visible and owned."
+        ),
+    },
+    "resume-access-request-testing": {
+        "evidence": (
+            "Access request forms (Stage 5A) and ServiceNow delegation are current "
+            "work, not just resume history."
+        ),
+        "use_it": (
+            "Walk the form-to-approval path in Stage 5A, then the delegation path "
+            "through ServiceNow."
+        ),
+    },
+    "resume-certification-testing": {
+        "evidence": (
+            "Certification escalation templates are in test this sprint, and you "
+            "maintain a SQLMD1 certification regression bucket."
+        ),
+        "use_it": (
+            "Use the escalation template as the current example, and the regression "
+            "bucket to explain how you re-run the campaign class after a change."
+        ),
+    },
+    "resume-ciam-reconciliation": {
+        "evidence": (
+            "CIAM reconciliation stages 1A-1E, then Stage 2 termination. The brief "
+            "names the stages but gives no record volumes."
+        ),
+        "use_it": (
+            "Name the stages in order and the gate each one clears. Do not quote a "
+            "volume the brief does not contain."
+        ),
+    },
+    "resume-cyberark": {
+        "evidence": (
+            "Your current role vaults its own test credentials and uses TLS; "
+            "CyberArk administration belongs to your earlier role. Keep that "
+            "boundary honest."
+        ),
+        "use_it": (
+            "Separate the two: 'my CyberArk testing was integration-level in my "
+            "previous role; at Admiral I hold my own tooling to the same "
+            "vault-first standard.'"
+        ),
+    },
+    "resume-dashboard-sql": {
+        "evidence": (
+            "Leaver manual-action dashboards and the SQLMD1 regression bucket give "
+            "you current-role SQL validation examples."
+        ),
+        "use_it": (
+            "Describe the dashboard count versus the SQL count, then the bucket "
+            "query you use to find the missing rows."
+        ),
+    },
+    "resume-complex-defect": {
+        "evidence": (
+            "The race between attribute updates and absence records, plus "
+            "regression triage when a suite fails in one environment but passes in "
+            "another."
+        ),
+        "use_it": (
+            "Tell the race as symptom, reproduction, layer-by-layer isolation, fix "
+            "and regression test; use triage to show environment discrimination."
+        ),
+    },
+    "resume-mentoring": {
+        "evidence": (
+            "The brief names the IGA and test engineers you work with but does not "
+            "describe mentoring at Admiral, so keep the mentoring story in your "
+            "earlier role."
+        ),
+        "use_it": (
+            "Use the current team only to show collaboration. Do not claim Admiral "
+            "mentoring the brief does not support."
+        ),
+    },
+    "resume-cicd": {
+        "evidence": (
+            "Release hygiene at the IGA_RELEASE_2026 cut-off: branch cleanup and "
+            "harness readiness before the release."
+        ),
+        "use_it": (
+            "Use the release cut-off as the current example of a pipeline gate and "
+            "a pre-release checklist."
+        ),
+    },
+    "resume-automate-or-not": {
+        "evidence": (
+            "The role deliberately mixes automated harnesses with manual Zephyr "
+            "cases. The static-user harnesses are your automation example."
+        ),
+        "use_it": (
+            "Use the harness/manual split to answer the 'what do you deliberately "
+            "not automate' half of the question."
+        ),
+    },
+}
+
+
+def get_admiral_role() -> dict:
+    return ADMIRAL_ROLE
+
+
 def list_resume_questions() -> list[dict]:
     return [
         {
@@ -504,5 +673,5 @@ def list_resume_questions() -> list[dict]:
 def get_resume_question(question_id: str) -> dict | None:
     for q in RESUME_QUESTIONS:
         if q["id"] == question_id:
-            return q
+            return {**q, "admiral_evidence": ADMIRAL_EVIDENCE.get(question_id)}
     return None

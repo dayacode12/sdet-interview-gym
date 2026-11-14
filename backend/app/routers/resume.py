@@ -10,7 +10,10 @@ router = APIRouter(prefix="/api/resume", tags=["resume"])
 
 @router.get("/questions")
 def list_resume_questions():
-    return {"questions": content.list_resume_questions()}
+    return {
+        "questions": content.list_resume_questions(),
+        "current_role": content.get_admiral_role(),
+    }
 
 
 @router.get("/questions/{question_id}")

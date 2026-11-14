@@ -77,9 +77,9 @@ baseTest("login gate opens with correct credentials and remembers the session", 
   await expect(page.getByLabel("Username")).toBeVisible();
 });
 
-test("all 17 pages render without errors", async ({ page }) => {
+test("all 18 pages render without errors", async ({ page }) => {
   const pages = [
-    "/", "/mind-map", "/company", "/round-1", "/plan", "/roadmap", "/java-lab", "/automation-lab", "/api-lab", "/sql-playground",
+    "/", "/mind-map", "/company", "/round-1", "/admiral-iga", "/plan", "/roadmap", "/java-lab", "/automation-lab", "/api-lab", "/sql-playground",
     "/iam-lab", "/scenarios", "/mock-interview", "/resume", "/flashcards",
     "/analytics", "/cheatsheet",
   ];
@@ -175,6 +175,180 @@ test("round 1 playbook labels evidence and persists a practice answer", async ({
   await expect(page.getByText(/I'd treat it as a live access incident/i)).toBeVisible();
   await page.getByRole("button", { name: "Hide all examples" }).click();
   await expect(page.getByText(/I'd treat it as a live access incident/i)).toBeHidden();
+});
+
+test("admiral iga playbook shows internal evidence and persists a draft", async ({ page }) => {
+  await page.goto("/admiral-iga");
+  await expect(page.getByRole("heading", { name: "Admiral IGA Playbook" })).toBeVisible({
+    timeout: 15000,
+  });
+
+  // The honesty claim is on the page, not just in the API payload.
+  await expect(page.getByText(/Internal evidence only/i)).toBeVisible();
+  await expect(page.getByText(/No Admiral source was queried or researched/i).first()).toBeVisible();
+
+  // Role snapshot and the in-flight sprint from the brief.
+  await expect(page.getByText("CURRENT ROLE", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /In flight — Q4-NOV-1-2026/i })).toBeVisible();
+  await expect(page.getByText("IAMPAM-9031").first()).toBeVisible();
+  await expect(page.getByText("IAMPAM-8983").first()).toBeVisible();
+
+  // The six CIAM stages and the lifecycle are rendered from data.
+  await expect(page.getByRole("heading", { name: /CIAM integration — tested stage by stage/i })).toBeVisible();
+
+  // Expand the anchor question, write a draft, reveal the model answer.
+  await page.getByRole("button", { name: /Tell me about your current role at Admiral Group/i }).click();
+  const box = page.getByLabel(/Your answer/i);
+  await box.fill("SDET in IGA; Saviynt, Transmit CIAM, Entra; evidence in Zephyr and Jira.");
+  await expect(page.getByText(/Autosaved|Autosaving|synced/i).first()).toBeVisible();
+  await page.getByRole("button", { name: "Reveal model answer" }).click();
+  await expect(
+    page.getByText(/Identity Governance and Administration team at Admiral/i).first()
+  ).toBeVisible();
+
+  // The draft survives a reload (localStorage; backend sync is covered elsewhere).
+  await page.reload();
+  await page
+    .getByRole("button", { name: /Tell me about your current role at Admiral Group/i })
+    .click();
+  await expect(page.getByLabel(/Your answer/i)).toHaveValue(/SDET in IGA/);
+});
+
+test("assistant answers globally from repo content with citations", async ({ page }) => {
+  await page.route("**/api/assistant/status", (route) =>
+    route.fulfill({
+      json: {
+        enabled: true,
+        model: "test-model",
+        excerpt_count: 420,
+        note: "Grounded in repo content.",
+      },
+    })
+  );
+  await page.route("**/api/assistant/ask", async (route) => {
+    const body = route.request().postDataJSON() as { question: string; page: string };
+    expect(body.question).toContain("leaver");
+    expect(body.page).toBe("/admiral-iga");
+    await route.fulfill({
+      json: {
+        answer: "Use Stage 2 termination and verify each target [1].",
+        sources: [
+          {
+            index: 1,
+            page: "Admiral IGA Playbook",
+            route: "/admiral-iga",
+            title: "CIAM Stage 2 — termination",
+            id: "admiral:stage-2",
+          },
+        ],
+        model: "test-model",
+        degraded: false,
+        note: "Answered from repo content only.",
+      },
+    });
+  });
+
+  await page.goto("/admiral-iga");
+  await page.getByRole("button", { name: /Open interview assistant/i }).click();
+  await expect(page.getByRole("dialog", { name: "Interview assistant" })).toBeVisible();
+  await page.getByPlaceholder(/Ask about any page/i).fill("Test a leaver who still has access");
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByText(/Use Stage 2 termination and verify each target/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: "[1] Admiral IGA Playbook" })).toBeVisible();
+
+  // It is global: the thread follows you to another page.
+  await page.goto("/sql-playground");
+  await page.getByRole("button", { name: /Open interview assistant/i }).click();
+  await expect(page.getByText(/Use Stage 2 termination and verify each target/i)).toBeVisible();
+});
+
+test("assistant dictates a question into the input on a phone-sized screen", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    class FakeRecorder {
+      state = "inactive";
+      mimeType = "audio/webm";
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      constructor() {
+        (
+          window as unknown as { __fakeRecorder: FakeRecorder }
+        ).__fakeRecorder = this;
+      }
+      static isTypeSupported() {
+        return true;
+      }
+      start() {
+        this.state = "recording";
+      }
+      stop() {
+        this.state = "inactive";
+        this.ondataavailable?.({
+          data: new Blob(["audio"], { type: "audio/webm" }),
+        });
+        this.onstop?.();
+      }
+    }
+    (window as unknown as { MediaRecorder: typeof FakeRecorder }).MediaRecorder =
+      FakeRecorder;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }),
+      },
+    });
+  });
+
+  let transcribeFails = false;
+  await page.route("**/api/assistant/status", (route) =>
+    route.fulfill({
+      json: {
+        enabled: true,
+        model: "test-model",
+        excerpt_count: 420,
+        note: "Grounded in repo content.",
+      },
+    })
+  );
+  await page.route("**/api/assistant/transcribe", (route) =>
+    transcribeFails
+      ? route.fulfill({
+          status: 500,
+          json: { detail: "Groq could not transcribe that clip (HTTP 500)." },
+        })
+      : route.fulfill({
+          json: { text: "how do I test a leaver", model: "whisper-large-v3-turbo" },
+        })
+  );
+
+  await page.goto("/round-1");
+  await page.getByRole("button", { name: /Open interview assistant/i }).click();
+  const dialog = page.getByRole("dialog", { name: "Interview assistant" });
+  const input = dialog.getByRole("textbox");
+
+  await dialog.getByRole("button", { name: "Dictate question" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Stop recording" })
+  ).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("button", { name: "Stop recording" }).click();
+
+  await expect(input).toHaveValue(/how do I test a leaver/i);
+  await expect(
+    dialog.getByRole("button", { name: "Dictate question" })
+  ).toBeVisible();
+
+  // A failed transcription must explain itself instead of failing silently.
+  transcribeFails = true;
+  await dialog.getByRole("button", { name: "Dictate question" }).click();
+  await dialog.getByRole("button", { name: "Stop recording" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(/transcribe/i);
+
+  // Escape closes the drawer and must not leave the microphone running.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Interview assistant" })).toHaveCount(0);
 });
 
 test("dashboard shows the honesty statement and Java mode", async ({ page }) => {
